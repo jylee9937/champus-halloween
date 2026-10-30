@@ -9,7 +9,7 @@ import { ACTIVITIES, activityName } from '../src/survey/data.js';
 const filled = () => ({
   ...emptyAnswers(),
   activities: ['futsal', 'book-club'], days: ['sat', 'mon'], participation: 'regular', seekingFaithCommunity: false,
-  comment: '  궁금해요  ', consent: true, name: ' 테스트 ', department: '소프트웨어학과', studentId: '00', phone: '010-0000-0000',
+  comment: '  궁금해요  ', name: ' 테스트 ', department: '소프트웨어학과', studentId: '00', phone: '010-0000-0000',
 });
 
 test('undecided is exclusive with every other activity', () => {
@@ -72,8 +72,8 @@ test('payload matches the data contract exactly', () => {
     department: '소프트웨어학과',
     studentId: '00',
     phone: '01000000000',
-    consent: true,
   });
+  assert.equal('consent' in p, false, 'the consent screen is gone, so consent is not sent');
   assert.deepEqual(payloadErrors(p), []);
 });
 
@@ -100,7 +100,7 @@ test('activityOther is sent only when 기타 is selected', () => {
 
 test('payloadErrors catches contract violations', () => {
   const p = buildPayload(filled());
-  assert.deepEqual(payloadErrors({ ...p, consent: false }), ['consent']);
+  assert.deepEqual(payloadErrors({ ...p, consent: true }), ['keys'], 'a stray consent field breaks the contract');
   assert.deepEqual(payloadErrors({ ...p, activities: [] }), ['activities']);
   assert.deepEqual(payloadErrors({ ...p, activities: ['nope'] }), ['activities']);
   assert.deepEqual(payloadErrors({ ...p, activities: ['other'], activityOther: null }), ['activityOther']);

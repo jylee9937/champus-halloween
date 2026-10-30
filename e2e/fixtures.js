@@ -40,7 +40,7 @@ export { expect };
 export const defaultPayload = {
   activities: ['book-club'], activityOther: null, days: [], participation: 'regular',
   seekingFaithCommunity: false, comment: '', name: '김챔퍼스', department: '소프트웨어학과',
-  studentId: '20261234', phone: '01012345678', consent: true,
+  studentId: '20261234', phone: '01012345678',
 };
 
 export async function assertPayload(page, expected = defaultPayload) {
@@ -53,7 +53,9 @@ export async function assertPayload(page, expected = defaultPayload) {
     createdAt: { __type: 'serverTimestamp' },
     expireAt: { ms: attempts[0].at + 365 * 24 * 60 * 60 * 1000 },
   });
-  expect(Object.keys(attempts[0].data)).toHaveLength(14);
+  // 13 keys: consent is no longer sent (the S5 consent screen was removed).
+  expect(Object.keys(attempts[0].data)).toHaveLength(13);
+  expect(attempts[0].data).not.toHaveProperty('consent');
   expect(attempts[0].data.phone).toMatch(/^01[0-9]{8,9}$/);
 }
 
@@ -62,7 +64,7 @@ export async function back(page) {
   const main = page.getByRole('main');
   const content = await main.textContent();
   await page.getByRole('button', { name: '이전으로' }).click();
-  // history.back is asynchronous, including S5→S4 where the progress value is unchanged.
+  // history.back is asynchronous, so wait for the stage content to change.
   await expect(main).not.toHaveText(content);
 }
 export const activity = (page, name) => page.getByRole('group', { name: '하고 싶은 활동' }).getByRole('button', { name: new RegExp(name + '$') });
@@ -113,7 +115,6 @@ export async function toComment(page) {
 export async function toName(page) {
   await toComment(page);
   await page.getByRole('button', { name: '건너뛰기' }).click();
-  await page.getByRole('button', { name: '동의하고 계속' }).click();
 }
 
 export async function toPhone(page) {
