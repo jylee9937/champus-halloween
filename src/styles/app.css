@@ -164,26 +164,33 @@ body{overflow:hidden}
 
 /* ---------- survey ---------- */
 
-/* activity tiles (Figma: Activity Card, Compact) */
-.acts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;width:100%}
-.act-cell{position:relative;display:flex}
-.act{flex:1;min-height:72px;display:flex;flex-direction:column;align-items:stretch;text-align:left;background:var(--surface);border:2px solid var(--line);border-bottom-width:5px;border-radius:16px;padding:8px 14px 15px;color:var(--fg);cursor:pointer;transition:transform .08s,background .15s,border-color .15s}
+/* activity cards (Figma: Activity Card, Layout=Detailed 15:89 / 15:97) */
+.acts{display:flex;flex-direction:column;gap:10px;width:100%}
+.act{display:flex;align-items:flex-start;gap:14px;width:100%;text-align:left;background:var(--surface);border:2px solid var(--line);border-bottom-width:5px;border-radius:18px;padding:16px 16px 19px;color:var(--fg);cursor:pointer;transition:transform .08s,background .15s,border-color .15s}
 .act:hover{background:var(--bg)}
 .act:active{transform:translateY(3px);border-bottom-width:2px}
 .act:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
-.act-head{display:flex;align-items:center;justify-content:space-between;min-height:24px}
-.act.has-info .act-head{min-height:32px}
-.act-emoji{font-size:24px;line-height:1}
-.act-name{font:800 19px/1.3 var(--display)}
-.check{flex:none;width:22px;height:22px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font:900 13px var(--display);color:transparent}
-.act.has-info .check{margin-left:34px}
-.act[aria-pressed="true"]{background:var(--blue-bg);border-color:var(--blue-line)}
-.act[aria-pressed="true"] .act-name{color:var(--blue-fg)}
+.act-icon{flex:none;width:48px;height:48px;border-radius:14px;background:var(--gold-bg);display:grid;place-items:center;font-size:26px;line-height:1}
+.act-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.act-head{display:flex;align-items:center;gap:8px}
+.act-name{flex:1;min-width:0;font:800 19px/1.3 var(--display)}
+/* Figma sets card copy in Jua throughout; Nunito digits would push the schedule onto a second line. */
+.act-intro{font:400 16px/1.4 "Jua",var(--display);color:var(--muted)}
+.act-when{font:400 15px/1.3 "Jua",var(--display);color:var(--muted)}
+.check{flex:none;width:26px;height:26px;border-radius:50%;border:2px solid var(--line);background:var(--surface);display:grid;place-items:center;font:900 16px var(--display);color:transparent}
+.act[aria-pressed="true"],.act[aria-pressed="true"]:hover{background:var(--blue-bg);border-color:var(--blue-line)}
+.act[aria-pressed="true"] .act-icon{background:var(--surface)}
+.act[aria-pressed="true"] .act-name,.act[aria-pressed="true"] .act-when{color:var(--blue-fg)}
 .act[aria-pressed="true"] .check{background:var(--blue);border-color:var(--blue);color:#fff}
-.act-info{position:absolute;top:10px;right:40px;width:32px;height:32px;border:0;border-radius:10px;background:transparent;color:var(--muted);display:grid;place-items:center;cursor:pointer;transition:transform .08s}
-.act-info:hover{background:var(--track)}
-.act-info:focus-visible{outline:3px solid var(--blue);outline-offset:0}
-.act-cell:has(.act:active) .act-info{transform:translateY(3px)}
+
+/* scroll affordance above the bottom bar (Figma: Scroll Hint 61:74) */
+.scroll-hint{position:absolute;left:0;right:0;z-index:4;height:76px;display:flex;justify-content:center;align-items:flex-start;pointer-events:none}
+.scroll-fade{position:absolute;left:0;right:0;bottom:0;height:52px;background:linear-gradient(to bottom,transparent,var(--bg));opacity:0;transition:opacity .25s}
+.scroll-pill{position:relative;padding:6px 14px;background:var(--surface);border:2px solid var(--blue-line);border-radius:999px;color:var(--blue-fg);font:800 17px/1.35 var(--display);white-space:nowrap;cursor:pointer;
+  opacity:0;visibility:hidden;transition:opacity .25s,visibility .25s;animation:hint-bounce 1.2s ease-in-out infinite}
+.scroll-pill:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.scroll-hint.fade-on .scroll-fade{opacity:1}
+.scroll-hint.pill-on .scroll-pill{opacity:1;visibility:visible;pointer-events:auto}
 
 /* day + wide toggles (Figma: Select Button) */
 .days{display:grid;grid-template-columns:repeat(7,minmax(0,44px));justify-content:space-between;column-gap:4px;width:100%}
@@ -236,29 +243,12 @@ textarea.input{min-height:150px;resize:none;display:block}
 .ig-link:hover{background:var(--blue-bg)}
 .ig-link:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
 
-/* activity info bottom sheet (Figma: Activity Sheet) */
-.sheet-dim{position:fixed;inset:0;z-index:20;background:var(--dim);animation:fade .2s ease-out both}
-.sheet{position:fixed;z-index:21;left:0;right:0;bottom:0;max-width:620px;margin:0 auto;display:flex;flex-direction:column;align-items:center;background:var(--surface);border-radius:22px 22px 0 0;
-  padding:10px max(16px,env(safe-area-inset-right,0px)) max(20px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
-  max-height:90%;overflow-y:auto;text-align:center;animation:up .3s cubic-bezier(.2,.8,.2,1) both}
-.sheet:focus{outline:none}
-.sheet-grab{flex:none;width:40px;height:5px;border-radius:3px;background:var(--line);margin-bottom:16px}
-.sheet-body{display:flex;flex-direction:column;align-items:center;gap:10px;padding-bottom:24px;width:100%}
-.sheet-icon{width:64px;height:64px;border-radius:18px;background:var(--gold-bg);display:grid;place-items:center;font-size:34px}
-.sheet-name{margin:0;font:800 28px/1.25 var(--display)}
-.sheet-intro{margin:0;font:800 18px/1.4 var(--display);text-wrap:pretty}
-.sheet-when{margin:0;font:800 17px/1.35 var(--display);color:var(--muted)}
-.sheet-picked{margin:0;font:800 17px/1.35 var(--display);color:var(--blue-fg)}
-.sheet-actions{display:flex;flex-direction:column;gap:4px;width:100%}
-.sheet-close{min-height:48px;border:0;background:transparent;color:var(--muted);font:800 19px/1.3 var(--display);cursor:pointer;border-radius:12px}
-.sheet-close:focus-visible{outline:3px solid var(--blue);outline-offset:-3px}
-.sheet.closing,.sheet-dim.closing{animation:none;opacity:0;transition:opacity .15s}
 
 @keyframes pop{from{opacity:0;transform:scale(.6) translateY(16px)}to{opacity:1;transform:none}}
 @keyframes slideIn{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:none}}
 @keyframes slideBack{from{opacity:0;transform:translateX(-40px)}to{opacity:1;transform:none}}
 @keyframes up{from{transform:translateY(100%)}to{transform:none}}
-@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes hint-bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(4px)}}
 @keyframes bump{30%{transform:scale(1.3) rotate(-6deg)}}
 @keyframes flame{0%,100%{transform:scale(1) rotate(-2deg)}50%{transform:scale(.92,1.08) rotate(2deg)}}
 @keyframes glow{from{opacity:.22;transform:scale(.9)}to{opacity:.5;transform:scale(1.15)}}

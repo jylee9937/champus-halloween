@@ -1,8 +1,9 @@
 // Activity sign-up survey: S0 intro → S1…S9 one question per screen → S10 completion coupon.
 // Figma: survey flow 21:1370, states 21:1371, components 15:79.
 import { pumpkin, candle } from '../lib/characters.js';
-import { confetti, couponHtml, INSTAGRAM_URL } from '../lib/ui.js';
+import { confetti, couponHtml, prefersReducedMotion, INSTAGRAM_URL } from '../lib/ui.js';
 import { track } from '../lib/analytics.js';
+import { attachScrollHint } from '../lib/scroll-hint.js';
 import { ACTIVITIES, DAYS, FLEXIBLE, PARTICIPATION } from './data.js';
 import {
   LIMITS, emptyAnswers, toggleActivity, toggleDay, activitiesComplete, isValidName, isValidDepartment,
@@ -11,9 +12,6 @@ import {
 
 const DONE_KEY = 'champus:done';
 const QUESTIONS = 9;
-
-// Figma icon/info, drawn with currentColor so it follows the theme.
-const INFO_ICON = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M17.9167 10C17.9167 14.3723 14.3723 17.9167 10 17.9167C5.62775 17.9167 2.08333 14.3723 2.08333 10C2.08333 5.62775 5.62775 2.08333 10 2.08333C14.3723 2.08333 17.9167 5.62775 17.9167 10Z" stroke="currentColor" stroke-width="1.83333"/><path d="M10 9.16667V13.75" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M10 7.58333C10.6904 7.58333 11.25 7.02369 11.25 6.33333C11.25 5.64298 10.6904 5.08333 10 5.08333C9.30964 5.08333 8.75 5.64298 8.75 6.33333C8.75 7.02369 9.30964 7.58333 10 7.58333Z" fill="currentColor"/></svg>`;
 
 const ask = (text, who = candle('happy')) => `<div class="line">${who}<div class="bubble">${text}</div></div>`;
 const isEnter = e => e.key === 'Enter' && !e.isComposing && e.keyCode !== 229;
@@ -33,7 +31,7 @@ export function createSurvey({ shell, nav, onLesson }) {
   let doneName = '';
   let sending = false;
   let screenEl = null;
-  let sheetOpener = null;
+  let removeScrollHint = null;
   let firebase = null;
 
   const loadFirebase = () => (firebase ??= import('../lib/firebase.js').catch(err => { firebase = null; throw err; }));
@@ -61,34 +59,43 @@ export function createSurvey({ shell, nav, onLesson }) {
     },
     {
       id: 's1', progress: 10, count: 1,
+      // Detailed cards (Figma S1 22:1572, Activity Card Layout=Detailed 15:106): intro and schedule up front.
+      // The accessible name is the activity name; intro and 🕒 schedule are its description.
       html: () => `<div class="screen">
         ${ask('하고 싶은 활동을<br>모두 골라 줘! 🙌')}
-        <p class="sub">여러 개 골라도 괜찮아</p>
-        <div class="acts" role="group" aria-label="하고 싶은 활동">${ACTIVITIES.map(act => {
-          const info = !act.exclusive && !act.needsText;
-          return `<div class="act-cell">
-            <button class="act${info ? ' has-info' : ''}" type="button" aria-pressed="false" data-id="${act.id}">
-              <span class="act-head"><span class="act-emoji" aria-hidden="true">${act.emoji}</span><span class="check" aria-hidden="true">✓</span></span>
-              <span class="act-name">${act.name}</span>
-            </button>
-            ${info ? `<button class="act-info" type="button" data-info="${act.id}" aria-label="${act.name} 소개 보기">${INFO_ICON}</button>` : ''}
-          </div>`;
-        }).join('')}</div>
-        ${input(`id="otherInput" type="text" maxlength="${LIMITS.activityOther}" placeholder="어떤 활동인지 적어 줘" aria-label="기타 활동" enterkeyhint="next" autocomplete="off"`,
-          { field: 'id="otherField" hidden' })}
+        <p class="sub">활동 ${ACTIVITIES.length}개 · 여러 개 골라도 괜찮아</p>
+        <div class="acts" role="group" aria-label="하고 싶은 활동">${ACTIVITIES.map(act => `
+          <button class="act" type="button" aria-pressed="false" data-id="${act.id}"
+            aria-labelledby="act-${act.id}" aria-describedby="act-${act.id}-intro${act.when ? ` act-${act.id}-when` : ''}">
+            <span class="act-icon" aria-hidden="true">${act.emoji}</span>
+            <span class="act-text">
+              <span class="act-head"><span class="act-name" id="act-${act.id}">${act.name}</span><span class="check" aria-hidden="true">✓</span></span>
+              <span class="act-intro" id="act-${act.id}-intro">${act.intro}</span>
+              ${act.when ? `<span class="act-when" id="act-${act.id}-when">🕒 ${act.when}</span>` : ''}
+            </span>
+          </button>
+          ${act.needsText ? input(`id="otherInput" type="text" maxlength="${LIMITS.activityOther}" placeholder="어떤 활동인지 적어 줘" aria-label="기타 활동" enterkeyhint="next" autocomplete="off"`,
+            { field: 'id="otherField" hidden' }) : ''}`).join('')}
+        </div>
       </div>`,
       mount: el => {
         el.querySelector('.acts').addEventListener('click', e => {
-          const info = e.target.closest('.act-info');
-          if (info) return openSheet(info.dataset.info, info);
-          const tile = e.target.closest('.act');
-          if (!tile) return;
-          const id = tile.dataset.id;
+          const card = e.target.closest('.act');
+          if (!card) return;
+          const id = card.dataset.id;
           setActivity(id, !a.activities.includes(id));
-          if (id === 'other' && a.activities.includes('other')) el.querySelector('#otherInput').focus();
+          if (id === 'other' && a.activities.includes('other')) {
+            // The input sits right under 기타, the last card: bring the list to its end so it clears the scroll fade.
+            el.querySelector('#otherInput').focus({ preventScroll: true });
+            shell.stage.scrollTo({ top: shell.stage.scrollHeight, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+          }
         });
         bindText(el.querySelector('#otherInput'), () => a.activityOther, v => { a.activityOther = v; });
         syncActivities();
+        removeScrollHint = attachScrollHint({
+          app: document.getElementById('app'), stage: shell.stage, footer: document.getElementById('bottom'),
+          label: `활동 ${ACTIVITIES.length}개 · 아래로 더 보기`,
+        });
       },
       cta: () => !a.activities.length ? ['활동을 골라 줘!', true]
         : !activitiesComplete(a) ? ['기타 활동을 적어 줘!', true]
@@ -266,7 +273,7 @@ export function createSurvey({ shell, nav, onLesson }) {
     el.addEventListener('keydown', e => { if (isEnter(e)) { e.preventDefault(); next(); } });
   }
 
-  /* ---------- activities + info sheet ---------- */
+  /* ---------- activities ---------- */
 
   function setActivity(id, on) {
     a.activities = toggleActivity(a.activities, id, on);
@@ -280,67 +287,6 @@ export function createSurvey({ shell, nav, onLesson }) {
     if (field) field.hidden = !a.activities.includes('other');
   }
 
-  const sheetRoot = document.getElementById('sheetRoot');
-  const appEl = document.getElementById('app');
-
-  function openSheet(id, opener) {
-    const act = ACTIVITIES.find(x => x.id === id);
-    const picked = a.activities.includes(id);
-    sheetOpener = opener;
-    track.infoOpen(id);
-    sheetRoot.innerHTML = `<div class="sheet-dim"></div>
-      <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetName">
-        <div class="sheet-grab" aria-hidden="true"></div>
-        <div class="sheet-body">
-          <div class="sheet-icon" aria-hidden="true">${act.emoji}</div>
-          <h2 class="sheet-name" id="sheetName">${act.name}</h2>
-          <p class="sheet-intro">${act.intro}</p>
-          <p class="sheet-when">🕒 ${act.when}</p>
-          ${picked ? '<p class="sheet-picked">✓ 이미 고른 활동이야</p>' : ''}
-        </div>
-        <div class="sheet-actions">
-          ${picked
-            ? '<button class="sel wide" type="button" data-act="unpick">선택 취소하기</button>'
-            : '<button class="btn" type="button" data-act="pick">이 활동 고르기</button>'}
-          <button class="sheet-close" type="button" data-act="close">닫기</button>
-        </div>
-      </div>`;
-    appEl.inert = true;
-    sheetRoot.querySelector('.sheet-dim').addEventListener('click', closeSheet);
-    sheetRoot.querySelector('.sheet-actions').addEventListener('click', e => {
-      const what = e.target.closest('[data-act]')?.dataset.act;
-      if (!what) return;
-      if (what === 'pick') track.infoSelect(id);
-      if (what !== 'close') setActivity(id, what === 'pick');
-      closeSheet();
-    });
-    sheetRoot.querySelector('.sheet-actions button').focus();
-  }
-
-  function closeSheet() {
-    if (!sheetRoot.firstChild) return false;
-    sheetRoot.innerHTML = '';
-    appEl.inert = false;
-    sheetOpener?.focus();
-    sheetOpener = null;
-    return true;
-  }
-
-  // Modal keyboard: Esc closes (focus returns to the ⓘ that opened it); Tab/Shift+Tab cycle inside the sheet.
-  // The page behind is inert, but without this trap Shift+Tab would leave the document for the browser UI.
-  document.addEventListener('keydown', e => {
-    if (!sheetRoot.firstChild) return;
-    if (e.key === 'Escape') { closeSheet(); return; }
-    if (e.key !== 'Tab') return;
-    const items = [...sheetRoot.querySelectorAll('.sheet button:not([disabled])')];
-    const i = items.indexOf(document.activeElement);
-    const wrapTo = e.shiftKey ? (i <= 0 ? items.at(-1) : null) : (i < 0 || i === items.length - 1 ? items[0] : null);
-    if (wrapTo) {
-      e.preventDefault();
-      wrapTo.focus();
-    }
-  });
-
   /* ---------- flow ---------- */
 
   const canBack = () => i > 0 && screens[i].id !== 's10' && !sending;
@@ -353,7 +299,8 @@ export function createSurvey({ shell, nav, onLesson }) {
 
   function render(dir) {
     const s = screens[i];
-    closeSheet();
+    removeScrollHint?.();
+    removeScrollHint = null;
     shell.hideBanner();
     screenEl = shell.show(s.html(), dir);
     track.screen(s.id.replace('-', '_'));
@@ -380,7 +327,7 @@ export function createSurvey({ shell, nav, onLesson }) {
   }
 
   function back() {
-    if (closeSheet() || !canBack()) return;
+    if (!canBack()) return;
     i--;
     render('back');
   }

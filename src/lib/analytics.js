@@ -49,8 +49,6 @@ const send = event => {
 export const track = {
   /** 's0'…'s10' (s3-1 is 's3_1') or 'l1'…'l11'. */
   screen: id => send({ type: 'screen', id }),
-  infoOpen: id => send({ type: 'infoOpen', id }),
-  infoSelect: id => send({ type: 'infoSelect', id }),
   submitAttempt: () => send({ type: 'submitAttempt' }),
   submitFailure: () => send({ type: 'submitFailure' }),
   submitted: () => send({ type: 'submitted' }),

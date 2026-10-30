@@ -1,5 +1,6 @@
 // Survey option data. Ids are part of the Firestore data contract — never rename them.
-// Array order is the tile order (Figma S1-A 21:1439) and the order activities are saved in.
+// Array order is the card order (Figma S1 detailed list 22:1572 / 61:2562) and the order activities are saved in.
+// `when` is the 🕒 schedule line; 아직 고민 중이에요 and 기타 have an intro but no schedule.
 // champs-study is shown as '스터디 모임'; only the label and icon changed, the id stays.
 
 export const ACTIVITIES = [
@@ -13,8 +14,8 @@ export const ACTIVITIES = [
   { id: 'career-mentoring', emoji: '💼', name: '취업 멘토링', intro: '진로와 취업에 대한 고민을 나누고 함께 준비하는 시간!', when: '일정은 신청자들과 조율 예정' },
   { id: 'happy-bridge', emoji: '🌱', name: '해피브릿지', intro: '맛있는 저녁과 함께 또래 대학생들과 삶을 나누고 친해지는 시간!', when: '매주 토요일 저녁 7시 30분' },
   { id: 'perfume-workshop', emoji: '🌸', name: '향수공방', intro: '나만의 향수를 만들어 보는 특별한 시간!', when: '일정은 신청자들과 조율 예정' },
-  { id: 'undecided', emoji: '🤔', name: '아직 고민 중이에요', exclusive: true },
-  { id: 'other', emoji: '✍️', name: '기타', needsText: true },
+  { id: 'undecided', emoji: '🤔', name: '아직 고민 중이에요', intro: '천천히 둘러보고 정해도 괜찮아요', exclusive: true },
+  { id: 'other', emoji: '✍️', name: '기타', intro: '하고 싶은 활동을 직접 적어 줘', needsText: true },
 ];
 
 export const DAYS = [
