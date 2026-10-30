@@ -62,7 +62,7 @@ test('SC-02 모든 일반 활동과 기타·모든 요일의 ID 및 선택 순�
   const names = ['캠퍼스 연합예배', '소그룹 예배', '독서모임', '바이브 코딩', '풋살 모임', '스터디 모임', '교육 봉사', '취업 멘토링', '해피브릿지', '향수공방'];
   // Tile order is the booth order (Figma S1-A); the study group's old label is gone.
   await expect(page.getByRole('group', { name: '하고 싶은 활동' }).locator('.act-name')).toHaveText([...names, '아직 고민 중이에요', '기타']);
-  await expect(page.getByRole('group', { name: '하고 싶은 활동' }).locator('.act-emoji'))
+  await expect(page.getByRole('group', { name: '하고 싶은 활동' }).locator('.act-icon'))
     .toHaveText(['⛪', '🙏', '📚', '💻', '⚽', '📝', '✏️', '💼', '🌱', '🌸', '🤔', '✍️']);
   await expect(page.getByRole('main')).not.toContainText("챔'S");
   for (const name of [...names].reverse()) await activity(page, name).click();

@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { funnel, surveyFunnel, lessonFunnel, infoTable, submitStats, analyticsReport } from '../src/admin/analytics-report.js';
+import {
+  funnel, surveyFunnel, lessonFunnel, infoTable, pickTable, hasInfoHistory, submitStats, analyticsReport,
+} from '../src/admin/analytics-report.js';
 import { emptyStats } from '../src/lib/tracker.js';
 
 const session = (over = {}) => {
@@ -113,8 +115,34 @@ test("'today' keeps sessions and responses from today's Korea date only", () => 
   assert.equal(today.day, '2026-10-31');
   assert.equal(today.sessions, 1);
   assert.equal(today.survey.at(-1).count, 1);
-  assert.equal(today.info.find(r => r.id === 'futsal').picks, 1);
+  assert.equal(today.picks.rows.find(r => r.id === 'futsal').count, 1);
+  assert.equal(today.picks.respondents, 1);
+  assert.equal(today.info, null, 'no ⓘ history → no legacy table');
   const all = analyticsReport(sessions, responses, { range: 'all', now });
   assert.equal(all.sessions, 2);
-  assert.equal(all.info.find(r => r.id === 'futsal').picks, 2);
+  assert.equal(all.picks.rows.find(r => r.id === 'futsal').count, 2);
+});
+
+test('활동별 선택: picks per activity from deduped responses, share of respondents, most picked first', () => {
+  const { respondents, rows } = pickTable([
+    { phone: '01011112222', createdAt: new Date('2026-10-31T04:00:00Z'), activities: ['futsal'] },
+    { phone: '01011112222', createdAt: new Date('2026-10-31T05:00:00Z'), activities: ['futsal', 'book-club'] }, // latest wins
+    { phone: '01033334444', createdAt: new Date('2026-10-31T05:00:00Z'), activities: ['futsal', 'other'] },
+    { phone: '01055556666', createdAt: new Date('2026-10-31T05:00:00Z'), activities: ['undecided'] },
+  ]);
+  assert.equal(respondents, 3);
+  assert.equal(rows.length, 12, 'all 12 choices, 아직 고민 중이에요 and 기타 included');
+  assert.deepEqual(rows.slice(0, 4).map(r => [r.id, r.count]), [['futsal', 2], ['book-club', 1], ['undecided', 1], ['other', 1]]);
+  assert.equal(rows[0].id, 'futsal');
+  assert.equal(rows[0].share, 2 / 3);
+  assert.deepEqual(rows.slice(1, 4).map(r => r.id), ['book-club', 'undecided', 'other'], 'ties keep the card order');
+  assert.equal(rows.find(r => r.id === 'perfume-workshop').count, 0);
+  assert.equal(pickTable([]).rows[0].share, null, 'no respondents → no share');
+});
+
+test('legacy ⓘ table only when some session still has ⓘ counts', () => {
+  assert.equal(hasInfoHistory([session(), session()]), false);
+  assert.equal(hasInfoHistory([session(), session({ infoSelects: { futsal: 1 } })]), true);
+  const report = analyticsReport([session({ infoOpens: { futsal: 2 } })], [], { range: 'all' });
+  assert.equal(report.info.find(r => r.id === 'futsal').opens, 2);
 });

@@ -40,11 +40,35 @@ function funnelCard(title, sub, steps, unit, empty) {
   </section>`;
 }
 
-function infoCard(rows) {
-  const max = Math.max(1, ...rows.map(r => r.opens));
-  return `<section class="an-card wide" aria-label="활동 소개(ⓘ) 열람">
-    <header><h2>활동 소개(ⓘ) 열람</h2><p>열람 많은 순 · 신청 수는 연락처 기준 중복 제외 응답</p></header>
+function picksCard({ respondents, rows }) {
+  const max = Math.max(1, ...rows.map(r => r.count));
+  return `<section class="an-card wide" aria-label="활동별 선택">
+    <header><h2>활동별 선택</h2><p>많이 고른 순 · 연락처 기준 중복 제외 응답자 ${n(respondents)}명 대비</p></header>
     <div class="an-table-wrap">
+      <table class="an-table">
+        <thead><tr><th scope="col">활동</th><th scope="col">고른 사람</th><th scope="col" class="num">응답자 대비</th></tr></thead>
+        <tbody>${rows.map(r => `<tr>
+          <th scope="row">${r.emoji} ${escapeHtml(r.name)}</th>
+          <td tabindex="0" data-tip="${escapeHtml(`${n(r.count)}명 · 응답자의 ${pct(r.share)}\n${r.name}`)}">
+            <div class="an-opens">
+              <span class="an-bar-track"><span class="fn-bar" style="width:${(r.count / max * 100).toFixed(1)}%"></span></span>
+              <span class="an-num">${n(r.count)}</span>
+            </div>
+          </td>
+          <td class="an-num">${pct(r.share)}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>
+  </section>`;
+}
+
+// Legacy: ⓘ counts recorded while S1 used compact tiles + an info sheet. Shown collapsed, only if any exist.
+function infoHistory(rows) {
+  if (!rows) return '';
+  const max = Math.max(1, ...rows.map(r => r.opens));
+  return `<details class="an-card wide an-legacy">
+    <summary>이전 ⓘ 기록 <small>(ⓘ 소개 시트를 쓰던 때의 열람 수)</small></summary>
+    <div class="an-table-wrap" role="region" aria-label="이전 ⓘ 기록">
       <table class="an-table">
         <thead><tr>
           <th scope="col">활동</th><th scope="col">ⓘ 열람</th><th scope="col" class="num">열어 본 세션</th>
@@ -65,7 +89,7 @@ function infoCard(rows) {
         </tr>`).join('')}</tbody>
       </table>
     </div>
-  </section>`;
+  </details>`;
 }
 
 /** `report` comes from analyticsReport(); `range` is 'today' | 'all'. */
@@ -88,7 +112,8 @@ export function analyticsHtml(report, range) {
     <div class="an-grid">
       ${funnelCard('설문 퍼널', '각 화면까지 온 세션 수 · 처음(챔퍼스 소개) 대비', survey, '세션', '아직 방문 기록이 없어요')}
       ${funnelCard('레슨 퍼널', '신청을 마친 세션 중 각 화면까지 본 수', lesson.steps, '세션', '아직 신청을 마친 세션이 없어요')}
-      ${infoCard(report.info)}
+      ${picksCard(report.picks)}
+      ${infoHistory(report.info)}
     </div>
     <div class="an-tip" role="tooltip" hidden></div>`;
 }

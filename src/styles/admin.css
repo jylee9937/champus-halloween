@@ -24,7 +24,7 @@ body{font:500 15px/1.5 "Noto Sans KR",sans-serif}
 /* header */
 .adm-top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:20px}
 .adm-top h1{margin:0;font:800 30px/1.2 var(--display)}
-.adm-user{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:14px}
+.adm-user{display:flex;align-items:center;flex-wrap:wrap;gap:8px;color:var(--muted);font-size:14px}
 .adm-user span{margin-right:4px}
 
 .adm-notice{margin:0 0 16px;padding:10px 14px;border-radius:12px;background:var(--blue-bg);border:2px solid var(--blue-line);color:var(--blue-fg);font:800 16px var(--display)}
@@ -113,6 +113,14 @@ body{font:500 15px/1.5 "Noto Sans KR",sans-serif}
 .an-table .an-num,.an-table th.num{text-align:right;font-variant-numeric:tabular-nums}
 .an-opens .an-num{min-width:2.5em}
 
+/* <details> doesn't constrain its content like a block card: clip it so the inner table scrolls instead of widening the page. */
+.an-legacy{overflow:hidden}
+.an-legacy .an-table-wrap{max-width:100%}
+.an-legacy summary{cursor:pointer;font:800 17px var(--display);color:var(--muted);padding:2px 0}
+.an-legacy summary small{font:500 13px "Noto Sans KR",sans-serif;margin-left:4px}
+.an-legacy summary:focus-visible{outline:3px solid var(--blue);outline-offset:2px;border-radius:6px}
+.an-legacy[open] summary{color:var(--fg);margin-bottom:12px}
+
 .an-tip{position:fixed;z-index:10;max-width:260px;padding:8px 10px;border-radius:10px;background:var(--fg);color:var(--bg);font-size:13px;line-height:1.45;white-space:pre-line;pointer-events:none;box-shadow:0 4px 14px rgba(0,0,0,.18)}
 .an-tip::first-line{font-weight:700}
 
@@ -128,4 +136,7 @@ body{font:500 15px/1.5 "Noto Sans KR",sans-serif}
   .fn-count{grid-area:count}
   .fn-pct{grid-area:pct;min-width:3.2em}
   .fn-drop{grid-area:drop;justify-self:end}
+  .an-table th,.an-table td{padding:8px 6px}
+  .an-table tbody th{white-space:normal}
+  .an-opens{min-width:80px}
 }
