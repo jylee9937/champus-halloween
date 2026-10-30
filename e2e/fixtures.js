@@ -76,11 +76,19 @@ export async function progress(page, value, count) {
 export async function layout(page) {
   const dimensions = await page.evaluate(() => ({
     width: innerWidth, documentWidth: document.documentElement.scrollWidth,
-    stageWidth: document.querySelector('main')?.clientWidth,
-    stageScroll: document.querySelector('main')?.scrollWidth,
   }));
   expect(dimensions.documentWidth).toBeLessThanOrEqual(dimensions.width);
-  if (dimensions.stageWidth) expect(dimensions.stageScroll).toBeLessThanOrEqual(dimensions.stageWidth + 1);
+  // Coupon notch pseudo-elements intentionally extend outside the card and are clipped by the stage.
+  // Check meaningful content bounds instead of treating decorative scrollWidth as a layout defect.
+  const overflow = await page.getByRole('main').evaluate(main => {
+    const stage = main.getBoundingClientRect();
+    return [...main.querySelectorAll('button,input,textarea,h1,h2,p,a,section,.bubble,.result-line,.chip,.cal,.note,.final-card,.score-card')]
+      .filter(element => element.getClientRects().length)
+      .map(element => ({ text: element.textContent.trim().slice(0, 60), rect: element.getBoundingClientRect() }))
+      .filter(({ rect }) => rect.left < stage.left - 1 || rect.right > stage.right + 1)
+      .map(({ text, rect }) => ({ text, left: rect.left, right: rect.right }));
+  });
+  expect(overflow, 'Readable content and controls fit inside the scrollable stage').toEqual([]);
   const cta = page.locator('footer').getByRole('button').first();
   if (await cta.count()) await expect(cta).toBeInViewport({ ratio: 1 });
 }

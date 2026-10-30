@@ -77,11 +77,11 @@ test('SC-44 모션 감소 설정은 애니메이션·전환·축하 종이 제�
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await expect(page.locator('main > div')).toHaveCSS('animation-name', 'none');
   await expect(page.locator('.fill')).toHaveCSS('transition-duration', '0s');
+  await expect(page.locator('.flame').first()).toHaveCSS('animation-name', 'none');
   await toPhone(page);
   await submit(page);
   await expect(page.locator('.confetti i')).toHaveCount(0);
   await expect(page.locator('.coupon')).toHaveCSS('animation-name', 'none');
-  await expect(page.locator('.flame').first()).toHaveCSS('animation-name', 'none');
 });
 
 test('SC-58 쿠폰 이름은 HTML로 해석하지 않고 텍스트로 표시', async ({ page }) => {

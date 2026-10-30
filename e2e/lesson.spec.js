@@ -116,8 +116,11 @@ test('SC-36 수업 방향키·가로 스와이프·미응답 퀴즈 건너뛰기
   await enterLesson(page);
   await page.keyboard.press('ArrowRight');
   await progress(page, 10);
-  await page.getByRole('main').dispatchEvent('touchstart', { touches: [{ clientX: 260, clientY: 300 }] });
-  await page.getByRole('main').dispatchEvent('touchend', { changedTouches: [{ clientX: 100, clientY: 300 }] });
+  await page.getByRole('main').evaluate(element => {
+    const touch = clientX => new Touch({ identifier: 1, target: element, clientX, clientY: 300 });
+    element.dispatchEvent(new TouchEvent('touchstart', { touches: [touch(260)], bubbles: true }));
+    element.dispatchEvent(new TouchEvent('touchend', { changedTouches: [touch(100)], bubbles: true }));
+  });
   await progress(page, 20);
   await page.keyboard.press('ArrowRight');
   await progress(page, 20);
