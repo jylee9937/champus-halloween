@@ -5,8 +5,9 @@ import { readFileSync } from "node:fs";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { initializeTestEnvironment } from "@firebase/rules-unit-testing";
-import { doc, getDoc, setDoc, serverTimestamp, Timestamp } from "firebase/firestore";
+import { addDoc, collection, doc, getDoc, setDoc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { createTracker, sessionDoc, newSid } from "../../src/lib/tracker.js";
+import { buildPayload, emptyAnswers } from "../../src/lib/validate.js";
 
 const env = await initializeTestEnvironment({
   projectId: "demo-champus-client",
@@ -58,7 +59,7 @@ test("a full visit: every client write is accepted and the doc matches what happ
   await v.step(screen("s0"));
   await v.step(screen("s1"), { type: "infoOpen", id: "futsal" }, { type: "infoSelect", id: "futsal" });
   await v.step({ type: "infoOpen", id: "book-club" });
-  for (const id of ["s2", "s3", "s3_1", "s4", "s5", "s6", "s7", "s8", "s9"]) await v.step(screen(id));
+  for (const id of ["s2", "s3", "s3_1", "s4", "s6", "s7", "s8", "s9"]) await v.step(screen(id));
   await v.step(screen("s8")); // back navigation: lastScreen moves, maxes stay
   await v.step(screen("s9"), { type: "submitAttempt" }, { type: "submitFailure" });
   await v.step({ type: "submitAttempt" }, { type: "submitted" }, screen("s10"), { type: "instagram", where: "done" });
@@ -83,13 +84,13 @@ test("a full visit: every client write is accepted and the doc matches what happ
 test("a reload continues the same session from sessionStorage without lowering anything", async () => {
   const first = visitor();
   await first.step(screen("s0"));
-  await first.step(screen("s5"), { type: "infoOpen", id: "futsal" });
+  await first.step(screen("s6"), { type: "infoOpen", id: "futsal" });
   const again = visitor(first.store.value);
   await again.step(screen("s0")); // the survey restarts at S0 after a reload
   assert.deepEqual(again.outcomes, ["update"]);
   const d = await stored(first.tracker.state().sid);
   assert.equal(d.lastScreen, "s0");
-  assert.equal(d.maxSurveyStep, 6);
+  assert.equal(d.maxSurveyStep, 7);
   assert.equal(d.infoOpens.futsal, 1);
 });
 
@@ -104,4 +105,17 @@ test("a create whose ack was lost is denied once, then the tracker switches to u
   await again.step(screen("s2"));
   assert.deepEqual(again.outcomes, ["create denied", "update", "update"]);
   assert.equal((await stored(first.tracker.state().sid)).maxSurveyStep, 2);
+});
+
+test("a survey response built by the app (no consent since S5 was removed) is accepted", async () => {
+  const answers = {
+    ...emptyAnswers(), activities: ["book-club", "other"], activityOther: "보드게임", days: ["tue"],
+    participation: "regular", seekingFaithCommunity: true, comment: "e2e", name: "테스트",
+    department: "테스트학과", studentId: "00", phone: "010-0000-0000",
+  };
+  // Same shape as submitResponse() in src/lib/firebase.js.
+  const data = { schemaVersion: 1, ...buildPayload(answers), createdAt: serverTimestamp(), expireAt: Timestamp.fromMillis(Date.now() + 365 * 86_400_000) };
+  assert.equal("consent" in data, false);
+  assert.equal(Object.keys(data).length, 13);
+  await addDoc(collection(anon, "responses"), data);
 });
