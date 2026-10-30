@@ -5,6 +5,8 @@ rules_version = '2';
 // - Only allowlisted admins (admins/{email}) may read responses.
 // - Documents carry expireAt (~1 year). Admins may delete a response only once it
 //   has expired (the admin page purges expired docs); no TTL policy (no billing).
+// - sessions/{sid}: anonymous funnel analytics, create + monotonic update by
+//   anyone, admin-only read, expired-only admin delete.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -83,9 +85,168 @@ service cloud.firestore {
       allow create: if validResponse(request.resource.data);
       allow read: if isAdmin();          // get + list
       allow update: if false;
-      allow delete: if isAdmin()
-        && resource.data.expireAt is timestamp
+      allow delete: if isAdmin() && isExpired();
+    }
+
+    // ---------------------------------------------------------------------
+    // Anonymous per-session analytics (no personal data). Anyone may create a
+    // session doc and advance it monotonically; only admins may read it, and
+    // delete it once expired.
+    // ---------------------------------------------------------------------
+
+    function isExpired() {
+      return resource.data.expireAt is timestamp
         && resource.data.expireAt < request.time;
+    }
+
+    // Rules evaluate at most 1,000 expressions per request, and have no loops,
+    // so map keys are spelled out and updates only re-check what changed
+    // (unchanged values were validated when they were written).
+
+    // Counter value: int in [0, 500] (cap limits abuse).
+    function isCount(v) {
+      return v is int && v >= 0 && v <= 500;
+    }
+
+    function isStep(v) {
+      return v is int && v >= 0 && v <= 11;
+    }
+
+    // s0..s10, s3_1, l1..l11 (a regex is far cheaper than a 23-item list).
+    function isScreen(v) {
+      return v is string && v.matches('^(s([0-9]|10|3_1)|l([1-9]|1[01]))$');
+    }
+
+    // ---- create: every field is validated --------------------------------
+
+    // Map entry k is absent or a valid counter.
+    function okEntry(m, k) {
+      return !(k in m) || isCount(m[k]);
+    }
+
+    // Keys: any subset of the 10 real activity ids (the client sends all 10).
+    function isActivityCountMap(m) {
+      return m is map
+        && m.size() <= 10
+        && m.keys().hasOnly([
+          'union-worship', 'small-group', 'book-club', 'vibe-coding', 'futsal',
+          'career-mentoring', 'edu-volunteer', 'champs-study', 'happy-bridge',
+          'perfume-workshop'
+        ])
+        && okEntry(m, 'union-worship') && okEntry(m, 'small-group')
+        && okEntry(m, 'book-club') && okEntry(m, 'vibe-coding')
+        && okEntry(m, 'futsal') && okEntry(m, 'career-mentoring')
+        && okEntry(m, 'edu-volunteer') && okEntry(m, 'champs-study')
+        && okEntry(m, 'happy-bridge') && okEntry(m, 'perfume-workshop');
+    }
+
+    function isInstagramCountMap(m) {
+      return m is map
+        && m.size() <= 2
+        && m.keys().hasOnly(['done', 'lessonEnd'])
+        && okEntry(m, 'done') && okEntry(m, 'lessonEnd');
+    }
+
+    // Create: one setDoc (no merge) with all 15 fields; timestamps pinned to
+    // request.time, ~1 year expiry. Values only need to be valid: the client
+    // falls back from update to create on permission-denied, so a create may
+    // already carry progress (create + update could reach that state anyway).
+    function validSessionCreate(d) {
+      let fields = [
+        'schemaVersion', 'startedAt', 'updatedAt', 'expireAt', 'lastScreen',
+        'maxSurveyStep', 'maxLessonStep', 'lessonCompleted', 'lessonRestarts',
+        'submitAttempts', 'submitFailures', 'submitted', 'infoOpens',
+        'infoSelects', 'instagramClicks'
+      ];
+      return d.keys().hasOnly(fields)
+        && d.keys().hasAll(fields)
+        && d.schemaVersion is int
+        && d.schemaVersion == 1
+        && d.startedAt == request.time
+        && d.updatedAt == request.time
+        && d.expireAt is timestamp
+        && d.expireAt >= request.time + duration.value(364, 'd')
+        && d.expireAt <= request.time + duration.value(366, 'd')
+        && isScreen(d.lastScreen)
+        && isStep(d.maxSurveyStep)
+        && isStep(d.maxLessonStep)
+        && d.lessonCompleted is bool
+        && d.submitted is bool
+        && isCount(d.lessonRestarts)
+        && isCount(d.submitAttempts)
+        && isCount(d.submitFailures)
+        && isActivityCountMap(d.infoOpens)
+        && isActivityCountMap(d.infoSelects)
+        && isInstagramCountMap(d.instagramClicks);
+    }
+
+    // ---- update: only changed fields / map keys are checked --------------
+
+    // Map entry k, if it changed, is an int <= 500 that grew (from -1 if new,
+    // i.e. a new key must be >= 0).
+    function grew(n, o, ch, k) {
+      return !(k in ch) || (n[k] is int && n[k] <= 500 && n[k] > (k in o ? o[k] : -1));
+    }
+
+    // No key removed, only real activity ids added, changed values grew.
+    function activityCountsGrew(n, o) {
+      let d = n.diff(o);
+      let ch = d.affectedKeys();
+      return d.removedKeys().size() == 0
+        && ch.hasOnly([
+          'union-worship', 'small-group', 'book-club', 'vibe-coding', 'futsal',
+          'career-mentoring', 'edu-volunteer', 'champs-study', 'happy-bridge',
+          'perfume-workshop'
+        ])
+        && grew(n, o, ch, 'union-worship') && grew(n, o, ch, 'small-group')
+        && grew(n, o, ch, 'book-club') && grew(n, o, ch, 'vibe-coding')
+        && grew(n, o, ch, 'futsal') && grew(n, o, ch, 'career-mentoring')
+        && grew(n, o, ch, 'edu-volunteer') && grew(n, o, ch, 'champs-study')
+        && grew(n, o, ch, 'happy-bridge') && grew(n, o, ch, 'perfume-workshop');
+    }
+
+    function instagramCountsGrew(n, o) {
+      let d = n.diff(o);
+      let ch = d.affectedKeys();
+      return d.removedKeys().size() == 0
+        && ch.hasOnly(['done', 'lessonEnd'])
+        && grew(n, o, ch, 'done') && grew(n, o, ch, 'lessonEnd');
+    }
+
+    // Update: setDoc(merge) with every field except startedAt/expireAt
+    // (absolute values). schemaVersion/startedAt/expireAt can't change (not in
+    // the changeable list), no field may be removed or added, updatedAt is
+    // pinned, and every changed value moves forward only.
+    function validSessionUpdate(n, o) {
+      let d = n.diff(o);
+      let ch = d.affectedKeys();
+      return d.removedKeys().size() == 0
+        && ch.hasOnly([
+          'updatedAt', 'lastScreen', 'maxSurveyStep', 'maxLessonStep',
+          'lessonCompleted', 'lessonRestarts', 'submitAttempts', 'submitFailures',
+          'submitted', 'infoOpens', 'infoSelects', 'instagramClicks'
+        ])
+        && n.updatedAt == request.time
+        && (!('lastScreen' in ch) || isScreen(n.lastScreen))
+        && (!('maxSurveyStep' in ch) || (isStep(n.maxSurveyStep) && n.maxSurveyStep > o.maxSurveyStep))
+        && (!('maxLessonStep' in ch) || (isStep(n.maxLessonStep) && n.maxLessonStep > o.maxLessonStep))
+        && (!('lessonRestarts' in ch) || (isCount(n.lessonRestarts) && n.lessonRestarts > o.lessonRestarts))
+        && (!('submitAttempts' in ch) || (isCount(n.submitAttempts) && n.submitAttempts > o.submitAttempts))
+        && (!('submitFailures' in ch) || (isCount(n.submitFailures) && n.submitFailures > o.submitFailures))
+        && (!('submitted' in ch) || n.submitted == true)
+        && (!('lessonCompleted' in ch) || n.lessonCompleted == true)
+        && (!('infoOpens' in ch) || activityCountsGrew(n.infoOpens, o.infoOpens))
+        && (!('infoSelects' in ch) || activityCountsGrew(n.infoSelects, o.infoSelects))
+        && (!('instagramClicks' in ch) || instagramCountsGrew(n.instagramClicks, o.instagramClicks));
+    }
+
+    match /sessions/{sid} {
+      allow create: if sid.matches('^[A-Za-z0-9]{20}$')
+        && validSessionCreate(request.resource.data);
+      allow update: if sid.matches('^[A-Za-z0-9]{20}$')
+        && validSessionUpdate(request.resource.data, resource.data);
+      allow read: if isAdmin();          // get + list
+      allow delete: if isAdmin() && isExpired();
     }
 
     // Allowlist: a signed-in user may only check their own entry.

@@ -21,6 +21,7 @@ The web SDK config is public by design. Access control comes from `firestore.rul
 - `.firebaserc`: default project
 - `firestore.rules`: security rules (the data contract is enforced here)
 - `firestore.indexes.json`: indexes (defaults only; the purge query uses the automatic single-field index on `expireAt`)
+- `test/rules/`: emulator test suite for `firestore.rules`, a self-contained package
 
 ## Data contract (`responses/{autoId}`)
 
@@ -35,6 +36,35 @@ The client must:
 
 No client can update a response. Only an admin can delete one, and only after its `expireAt` has passed.
 
+## Analytics sessions (`sessions/{sid}`)
+
+These are anonymous funnel counters, one document per visit, with no personal data. Anyone can create a session and move it forward. Only admins can read sessions, and an admin can delete one only after its `expireAt` has passed.
+
+- **Doc ID:** `sid` is exactly 20 characters `[A-Za-z0-9]`. A Firestore auto-ID fits.
+- **Fields:** all 15 are required, and no others are allowed.
+  - `schemaVersion` (1)
+  - timestamps: `startedAt`, `updatedAt`, `expireAt`
+  - `lastScreen` (`s0`–`s10`, `s3_1`, `l1`–`l11`)
+  - steps: `maxSurveyStep` and `maxLessonStep`, ints 0–11
+  - booleans: `lessonCompleted`, `submitted`
+  - counters: `lessonRestarts`, `submitAttempts`, `submitFailures`, ints 0–500
+  - count maps, ints 0–500 per entry:
+    - `infoOpens` and `infoSelects`: keys are a subset of the 10 real activity ids (no `undecided`/`other`)
+    - `instagramClicks`: keys are a subset of `done`, `lessonEnd`
+- **Create:** one `setDoc` without merge, carrying all 15 fields.
+  - `startedAt` and `updatedAt` are `serverTimestamp()`.
+  - `expireAt` is a client `Timestamp` set to now + 365d. The rules accept 364–366d.
+  - Values only have to be in range. A create may already carry progress, because the client falls back to create when an update is denied.
+- **Update:** `setDoc(..., { merge: true })` with every field except `startedAt` and `expireAt`. Values are absolute and `updatedAt` is `serverTimestamp()`.
+  - `schemaVersion`, `startedAt` and `expireAt` can't change.
+  - No field or map key may be removed or added. Map keys from the allowed set are the only exception: they may be added.
+  - Steps, counters and map values never decrease.
+  - `submitted` and `lessonCompleted` never go from true to false.
+  - `lastScreen` may move in either direction.
+- **Rules cost:** rules may evaluate at most 1,000 expressions per request. Updates therefore check only the fields and map entries that changed.
+  - One update can change all 20 activity-map entries if nothing else changes, or 12 of them alongside every other field.
+  - Real writes change 1–3 values.
+
 ## Admins
 
 - An admin signs in with Google. The account's email must be verified, which is always the case for Google accounts.
@@ -46,7 +76,7 @@ No client can update a response. Only an admin can delete one, and only after it
 
 The project runs on the free Spark plan with no billing, so there is **no TTL policy** (TTL requires Blaze).
 
-Expired responses are purged by the admin page instead. When it opens, it queries `responses` where `expireAt < now` and deletes the results. The rules allow `delete` only for an admin, and only when `resource.data.expireAt < request.time`. Even a buggy client can't delete an unexpired response.
+Expired responses are purged by the admin page instead. When it opens, it queries `responses` where `expireAt < now` and deletes the results. `sessions` has the same expired-only admin delete rule, so it can be purged the same way. The rules allow `delete` only for an admin, and only when `resource.data.expireAt < request.time`. Even a buggy client can't delete an unexpired response.
 
 Deletion therefore happens the next time an admin opens the page after expiry. If nobody opens it for a long time, an admin can also delete expired documents in the Firebase console.
 
@@ -64,11 +94,21 @@ To serve the site from a new domain, add it under Authentication > Settings > Au
 
 ## Test rules locally
 
+The emulator needs Java 11 or later. The suite is offline: it uses the demo project `demo-champus` and never touches production.
+
 ```sh
-npx -y firebase-tools@latest emulators:start --only firestore
+cd test/rules
+npm install
+npm test
 ```
 
-Point `@firebase/rules-unit-testing` at `127.0.0.1:8080` with the contents of `firestore.rules`. The rules were verified against 97 allow/deny cases: valid and invalid creates, reads by anonymous users, non-admins, unverified accounts and admins, update, the expired-only admin delete (single and batched), and the allowlist.
+`test/rules/firestore.rules.test.mjs` holds 216 allow/deny cases covering:
+
+- responses: creates, reads, update, delete and the expired-only purge
+- sessions: the web app's create and merge-update pattern, every monotonic violation, keys and types, caps, heavy updates, admin-only reads and the expired-only delete
+- the `admins` allowlist and the default deny
+
+Run it before every rules deploy.
 
 ## Ownership
 
