@@ -145,6 +145,21 @@ deny("response: without consent, missing phone", createResponse(anon, response({
 deny("response: without consent, extra field", createResponse(anon, response({ consent: undefined, agreed: true })));
 deny("response: without consent, bad studentId", createResponse(anon, response({ consent: undefined, studentId: "1" })));
 deny("response: without consent, client createdAt", createResponse(anon, response({ consent: undefined, createdAt: Timestamp.now() })));
+
+// gender is optional (older clients omit it); if present it must be 'male' or 'female'
+allow("response: gender male", createResponse(anon, response({ gender: "male" })));
+allow("response: gender female", createResponse(anon, response({ gender: "female" })));
+allow("response: without gender", createResponse(anon, response({ gender: undefined })));
+allow("response: gender female, without consent (new client)", createResponse(anon, response({ gender: "female", consent: undefined })));
+deny("response: gender 'M'", createResponse(anon, response({ gender: "M" })));
+deny("response: gender empty string", createResponse(anon, response({ gender: "" })));
+deny("response: gender 'other'", createResponse(anon, response({ gender: "other" })));
+deny("response: gender number", createResponse(anon, response({ gender: 1 })));
+deny("response: gender 'Male' (case)", createResponse(anon, response({ gender: "Male" })));
+deny("response: gender null", createResponse(anon, response({ gender: null })));
+deny("response: gender list", createResponse(anon, response({ gender: ["male"] })));
+deny("response: gender male, but bad phone", createResponse(anon, response({ gender: "male", phone: "010-1234-5678" })));
+deny("response: gender male, plus extra field", createResponse(anon, response({ gender: "male", sex: "male" })));
 deny("response: createdAt client time", createResponse(anon, response({ createdAt: Timestamp.now() })));
 deny("response: expireAt 300d", createResponse(anon, response({ expireAt: Timestamp.fromMillis(Date.now() + 300 * DAY) })));
 deny("response: expireAt 363d", createResponse(anon, response({ expireAt: Timestamp.fromMillis(Date.now() + 363 * DAY) })));
