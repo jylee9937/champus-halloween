@@ -1,8 +1,8 @@
 // Admin-side shaping of survey responses: dedupe, summary, table cells and CSV. Pure — runs under `node --test`.
-import { ACTIVITIES, activityName, dayLabel, participationLabel } from '../survey/data.js';
+import { ACTIVITIES, activityName, dayLabel, genderLabel, participationLabel } from '../survey/data.js';
 import { formatPhone } from '../lib/validate.js';
 
-export const COLUMNS = ['제출 시각', '이름', '학과', '학번', '연락처', '활동', '기타 활동', '요일', '참여 방식', '신앙 공동체', '궁금한 점'];
+export const COLUMNS = ['제출 시각', '이름', '성별', '학과', '학번', '연락처', '활동', '기타 활동', '요일', '참여 방식', '신앙 공동체', '궁금한 점'];
 
 const time = r => r.createdAt?.getTime?.() ?? 0;
 export const newestFirst = rows => [...rows].sort((x, y) => time(y) - time(x));
@@ -24,6 +24,9 @@ export function summarize(rows) {
   return {
     respondents: rows.length,
     faithYes: rows.filter(r => r.seekingFaithCommunity === true).length,
+    // Responses from before the 성별 question have no gender; they count in neither.
+    male: rows.filter(r => r.gender === 'male').length,
+    female: rows.filter(r => r.gender === 'female').length,
     activities: ACTIVITIES.map(a => ({ id: a.id, emoji: a.emoji, name: a.name, count: counts.get(a.id) })),
   };
 }
@@ -43,6 +46,7 @@ export function toCells(r) {
   return [
     formatTime(r.createdAt),
     r.name ?? '',
+    genderLabel(r.gender), // '—' for responses from before the question
     r.department ?? '',
     r.studentId ?? '',
     formatPhone(r.phone ?? ''),

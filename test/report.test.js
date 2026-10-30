@@ -5,7 +5,7 @@ import { dedupeByPhone, summarize, toCells, toCsv, formatTime, COLUMNS } from '.
 const row = (id, phone, iso, extra = {}) => ({
   id, phone, createdAt: new Date(iso), name: '이름' + id, department: '학과', studentId: '20261234',
   activities: ['futsal'], activityOther: null, days: [], participation: 'regular', seekingFaithCommunity: false, comment: '',
-  ...extra,
+  gender: 'male', ...extra,
 });
 
 test('dedupe by phone keeps the latest submission, newest first', () => {
@@ -17,14 +17,17 @@ test('dedupe by phone keeps the latest submission, newest first', () => {
   assert.deepEqual(dedupeByPhone(rows).map(r => r.id), ['b', 'c']);
 });
 
-test('summary counts unique people per activity and faith yes', () => {
+test('summary counts unique people per activity, faith yes and gender', () => {
   const s = summarize([
     row('a', '1', '2026-10-31T01:00:00Z', { activities: ['futsal', 'book-club'], seekingFaithCommunity: true }),
-    row('b', '2', '2026-10-31T02:00:00Z', { activities: ['futsal'] }),
+    row('b', '2', '2026-10-31T02:00:00Z', { activities: ['futsal'], gender: 'female' }),
+    row('c', '3', '2026-10-31T03:00:00Z', { activities: ['futsal'], gender: 'female' }),
+    row('d', '4', '2026-10-31T04:00:00Z', { activities: ['futsal'], gender: undefined }), // before the 성별 question
   ]);
-  assert.equal(s.respondents, 2);
+  assert.equal(s.respondents, 4);
   assert.equal(s.faithYes, 1);
-  assert.equal(s.activities.find(x => x.id === 'futsal').count, 2);
+  assert.deepEqual([s.male, s.female], [1, 2]);
+  assert.equal(s.activities.find(x => x.id === 'futsal').count, 4);
   assert.equal(s.activities.find(x => x.id === 'book-club').count, 1);
   assert.equal(s.activities.find(x => x.id === 'perfume-workshop').count, 0);
 });
@@ -36,7 +39,7 @@ test('summary lists activities in booth order with 📝 스터디 모임 for cha
     ['career-mentoring', '💼', '취업 멘토링', 0], ['happy-bridge', '🌱', '해피브릿지', 0],
   ]);
   const cells = toCells(row('a', '1', '2026-10-31T01:00:00Z', { activities: ['champs-study', 'career-mentoring'] }));
-  assert.equal(cells[5], '스터디 모임, 취업 멘토링');
+  assert.equal(cells[6], '스터디 모임, 취업 멘토링');
   assert.ok(toCsv([row('a', '1', '2026-10-31T01:00:00Z', { activities: ['champs-study'] })]).includes('"스터디 모임"'));
 });
 
@@ -47,14 +50,20 @@ test('cells are Korean labels in column order', () => {
   }));
   assert.equal(cells.length, COLUMNS.length);
   assert.deepEqual(cells, [
-    '2026-10-31 14:30', '이름a', '학과', '20261234', '010-1234-5678', '기타, 아직 고민 중이에요', '보드게임',
+    '2026-10-31 14:30', '이름a', '남', '학과', '20261234', '010-1234-5678', '기타, 아직 고민 중이에요', '보드게임',
     '월, 일정에 따라 달라요', '우선 활동 안내를 받아보고 싶어요', '네', '궁금',
   ]);
+  assert.equal(COLUMNS[2], '성별');
+  assert.equal(toCells(row('b', '1', '2026-10-31T05:30:00Z', { gender: 'female' }))[2], '여');
+  // Responses saved before the 성별 question show a dash, in the table and the CSV.
+  const old = row('c', '1', '2026-10-31T05:30:00Z', { gender: undefined });
+  assert.equal(toCells(old)[2], '—');
+  assert.ok(toCsv([old]).includes('"이름c","—","학과"'));
 });
 
 test('CSV has a BOM, quotes cells and defuses formulas', () => {
   const csv = toCsv([row('a', '01012345678', '2026-10-31T05:30:00Z', { name: '=HYPERLINK("x")', comment: 'a,"b"\nc' })]);
-  assert.ok(csv.startsWith('﻿"제출 시각","이름"'));
+  assert.ok(csv.startsWith('﻿"제출 시각","이름","성별","학과"'));
   assert.ok(csv.includes(`"'=HYPERLINK(""x"")"`));
   assert.ok(csv.includes('"a,""b""\nc"'));
   assert.ok(csv.endsWith('\r\n'));

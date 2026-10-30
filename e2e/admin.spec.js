@@ -7,7 +7,7 @@ const response = (id, extra = {}) => ({
   createdAt: '2026-10-30T01:00:00Z', expireAt: '2027-10-30T01:00:00Z', ...extra,
 });
 const seeds = [
-  response('old', { name: '이전응답', seekingFaithCommunity: true, activities: ['perfume-workshop'] }),
+  response('old', { name: '이전응답', seekingFaithCommunity: true, activities: ['perfume-workshop'], gender: 'male' }),
   response('other', {
     name: '박다른', phone: '01033334444', studentId: '20260002',
     activities: ['futsal', 'other'], activityOther: '보드게임', days: ['flexible'], participation: 'info-only',
@@ -16,8 +16,10 @@ const seeds = [
   response('latest', {
     name: '김최신', department: '소프트웨어학과', activities: ['book-club', 'futsal', 'champs-study'],
     days: ['mon', 'sat'], seekingFaithCommunity: true, comment: '최신 의견', createdAt: '2026-10-30T03:00:00Z',
+    gender: 'female',
   }),
 ];
+// '박다른' was saved before the 성별 question existed, so it has no gender.
 
 test.use({ mockOptions: { responses: seeds } });
 
@@ -82,24 +84,33 @@ test('SC-49 전화번호 기준 최신 응답·중복 토글·최신순·배지'
   await expect(rows(page)).toHaveCount(2);
   await expect(rows(page).nth(0)).toContainText('김최신');
   await expect(rows(page).nth(1)).toContainText('박다른');
+  // 성별 column right after 이름: 여 for the new response, — for the one saved before the question.
+  await expect(page.getByRole('columnheader').nth(2)).toHaveText('성별');
+  await expect(rows(page).nth(0).getByRole('cell').nth(2)).toHaveText('여');
+  await expect(rows(page).nth(1).getByRole('cell').nth(2)).toHaveText('—');
   await expect(page.getByRole('table')).not.toContainText('이전응답');
   await expect(page.getByText('2건 표시', { exact: true })).toBeVisible();
   await page.getByRole('checkbox', { name: /중복 응답도 보기/ }).check();
   await expect(rows(page)).toHaveCount(3);
   await expect(rows(page).nth(2)).toContainText('이전응답');
   await expect(rows(page).nth(2)).toContainText('중복');
+  await expect(rows(page).nth(2).getByRole('cell').nth(2)).toHaveText('남');
   await expect(page.getByText('3건 표시', { exact: true })).toBeVisible();
   await page.getByRole('checkbox', { name: /중복 응답도 보기/ }).uncheck();
   await expect(rows(page)).toHaveCount(2);
 });
 
-test('SC-50 요약은 중복 제외 응답자·신앙 네·활동별 인원, 토글해도 유지', async ({ page }) => {
+test('SC-50 요약은 중복 제외 응답자·성별·신앙 네·활동별 인원, 토글해도 유지', async ({ page }) => {
   await login(page);
   const summary = page.getByRole('region', { name: '요약' });
   for (const showDupes of [false, true]) {
     await page.getByRole('checkbox', { name: /중복 응답도 보기/ }).setChecked(showDupes);
     await expect(summary.getByText('응답자', { exact: true }).locator('..')).toContainText('2명');
     await expect(summary.getByText("신앙 공동체 '네'", { exact: true }).locator('..')).toContainText('1명');
+    // Unique respondents only: the superseded '남' response does not count; 박다른 predates the question.
+    const genders = summary.getByText('성별', { exact: true }).locator('..');
+    await expect(genders.locator('b')).toHaveText('남 0 · 여 1');
+    await expect(genders).toContainText('성별 없는 이전 응답 1명');
     for (const [name, count] of [['독서모임', 1], ['풋살 모임', 2], ['스터디 모임', 1], ['기타', 1], ['향수공방', 0], ['아직 고민 중이에요', 0]]) {
       await expect(summary.getByRole('listitem').filter({ hasText: name })).toHaveText(new RegExp(name + '\\s*' + count + '$'));
     }
@@ -121,11 +132,11 @@ test('SC-51 CSV 실제 다운로드·UTF-8 BOM·한국어·따옴표·개행·�
   });
   await page.getByRole('button', { name: 'Google로 로그인' }).click();
   await expect(rows(page)).toHaveCount(2);
-  const header = '"제출 시각","이름","학과","학번","연락처","활동","기타 활동","요일","참여 방식","신앙 공동체","궁금한 점"';
+  const header = '"제출 시각","이름","성별","학과","학번","연락처","활동","기타 활동","요일","참여 방식","신앙 공동체","궁금한 점"';
   const expected = '\uFEFF' + [
     header,
-    '"2026-10-30 12:00","김최신","소프트웨어학과","20261234","010-1111-2222","독서모임, 풋살 모임, 스터디 모임","","월, 토","정기적으로 함께하고 싶어요","네","최신 의견"',
-    '"2026-10-30 11:00","\'=HYPERLINK(""x"")","학과","20260002","010-3333-4444","풋살 모임, 기타","보드게임","일정에 따라 달라요","우선 활동 안내를 받아보고 싶어요","아니요","첫 줄,""인용""\n다음 줄"',
+    '"2026-10-30 12:00","김최신","여","소프트웨어학과","20261234","010-1111-2222","독서모임, 풋살 모임, 스터디 모임","","월, 토","정기적으로 함께하고 싶어요","네","최신 의견"',
+    '"2026-10-30 11:00","\'=HYPERLINK(""x"")","—","학과","20260002","010-3333-4444","풋살 모임, 기타","보드게임","일정에 따라 달라요","우선 활동 안내를 받아보고 싶어요","아니요","첫 줄,""인용""\n다음 줄"',
     '',
   ].join('\r\n');
   for (const includeDupes of [false, true]) {

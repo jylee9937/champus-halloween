@@ -39,7 +39,8 @@ test('survey funnel counts sessions with maxSurveyStep ≥ each step, without th
   assert.deepEqual(rows.map(r => r.count), [4, 3, 2, 2, 2, 1, 1, 1, 1, 1, 1]);
   assert.equal(rows.filter(r => r.biggestDrop).length, 1);
   assert.equal(rows[0].label, '챔퍼스 소개');
-  assert.equal(rows[6].label, '이름');
+  // The 성별 screen reports as s6 too, so this row covers both.
+  assert.equal(rows[6].label, '이름·성별');
 });
 
 test('S4 → S6 drop is direct; old sessions that stopped on S5 still render (counted up to S4)', () => {
