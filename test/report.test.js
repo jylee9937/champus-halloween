@@ -29,6 +29,17 @@ test('summary counts unique people per activity and faith yes', () => {
   assert.equal(s.activities.find(x => x.id === 'perfume-workshop').count, 0);
 });
 
+test('summary lists activities in booth order with 📝 스터디 모임 for champs-study', () => {
+  const s = summarize([row('a', '1', '2026-10-31T01:00:00Z', { activities: ['champs-study'] })]);
+  assert.deepEqual(s.activities.slice(4, 9).map(x => [x.id, x.emoji, x.name, x.count]), [
+    ['futsal', '⚽', '풋살 모임', 0], ['champs-study', '📝', '스터디 모임', 1], ['edu-volunteer', '✏️', '교육 봉사', 0],
+    ['career-mentoring', '💼', '취업 멘토링', 0], ['happy-bridge', '🌱', '해피브릿지', 0],
+  ]);
+  const cells = toCells(row('a', '1', '2026-10-31T01:00:00Z', { activities: ['champs-study', 'career-mentoring'] }));
+  assert.equal(cells[5], '스터디 모임, 취업 멘토링');
+  assert.ok(toCsv([row('a', '1', '2026-10-31T01:00:00Z', { activities: ['champs-study'] })]).includes('"스터디 모임"'));
+});
+
 test('cells are Korean labels in column order', () => {
   const cells = toCells(row('a', '01012345678', '2026-10-31T05:30:00Z', {
     activities: ['other', 'undecided'], activityOther: '보드게임', days: ['mon', 'flexible'],
