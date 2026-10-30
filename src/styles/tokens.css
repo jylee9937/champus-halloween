@@ -1,0 +1,42 @@
+/* Design tokens — ported from the original Halloween lesson page (light + dark). Shared by the booth and admin pages. */
+:root{
+  --bg:#FFFBF2; --surface:#FFFFFF; --line:#E9E2D2; --fg:#3B3530; --muted:#8B8375; --track:#EDE7DA;
+  --green:#58CC02; --green-dk:#46A302; --green-bg:#D7FFB8; --green-line:#A5ED6E; --green-fg:#4CA300;
+  --blue:#1CB0F6; --blue-bg:#DDF4FF; --blue-line:#84D8FF; --blue-fg:#1899D6;
+  --red:#FF4B4B; --red-dk:#D33131; --red-bg:#FFDFE0; --red-line:#FFB2B2; --red-fg:#EA2B2B;
+  --orange:#FF9600; --orange-bg:#FFE9CF; --orange-line:#FFC27A;
+  --gold:#FFC800; --gold-bg:#FFF4C2; --gold-line:#FFD84D; --gold-fg:#A86E00;
+  --dim:rgba(0,0,0,.4);
+  --display:"Nunito","Jua",sans-serif;
+  --body:"Nunito","Noto Sans KR",sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#131A2C; --surface:#1C2437; --line:#34405A; --fg:#F2F4F8; --muted:#A6AFC2; --track:#2A3450;
+    --green-bg:#1F3A17; --green-line:#3E7A22; --green-fg:#9BE85A;
+    --blue-bg:#16324A; --blue-line:#2D6E9E; --blue-fg:#7CD3FF;
+    --red-bg:#44222A; --red-line:#8A3A46; --red-fg:#FF8A8A;
+    --orange-bg:#4A2F12; --orange-line:#9C5E1E;
+    --gold-bg:#3E3212; --gold-line:#8A6C1E; --gold-fg:#FFD24D;
+    --dim:rgba(0,0,0,.6);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#131A2C; --surface:#1C2437; --line:#34405A; --fg:#F2F4F8; --muted:#A6AFC2; --track:#2A3450;
+  --green-bg:#1F3A17; --green-line:#3E7A22; --green-fg:#9BE85A;
+  --blue-bg:#16324A; --blue-line:#2D6E9E; --blue-fg:#7CD3FF;
+  --red-bg:#44222A; --red-line:#8A3A46; --red-fg:#FF8A8A;
+  --orange-bg:#4A2F12; --orange-line:#9C5E1E;
+  --gold-bg:#3E3212; --gold-line:#8A6C1E; --gold-fg:#FFD24D;
+  --dim:rgba(0,0,0,.6);
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-synthesis:none;-webkit-font-smoothing:antialiased;
+  word-break:keep-all;overflow-wrap:break-word}
+button,input,textarea{font-family:inherit}
+[hidden]{display:none!important}
