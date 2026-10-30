@@ -54,7 +54,23 @@ export function lessonFunnel(sessions) {
   };
 }
 
-/** Per activity: ⓘ opens, sessions that opened it, sheet selects and the share who picked after reading. */
+/**
+ * Picks per activity from responses deduped by phone, with the share of those respondents.
+ * All 12 choices (아직 고민 중이에요 and 기타 included), most picked first.
+ */
+export function pickTable(responses) {
+  const unique = dedupeByPhone(responses);
+  const rows = summarize(unique).activities.map((a, order) => ({
+    ...a, order, share: unique.length ? a.count / unique.length : null,
+  }));
+  return { respondents: unique.length, rows: rows.sort((x, y) => y.count - x.count || x.order - y.order) };
+}
+
+/** True when any session still carries ⓘ counts from before S1 showed the details inline. */
+export const hasInfoHistory = sessions =>
+  sessions.some(s => INFO_IDS.some(id => num(s.infoOpens?.[id]) > 0 || num(s.infoSelects?.[id]) > 0));
+
+/** Legacy (ⓘ sheet era): opens, sessions that opened it, sheet selects and the share who picked after reading. */
 export function infoTable(sessions, responses) {
   const picks = Object.fromEntries(summarize(dedupeByPhone(responses)).activities.map(a => [a.id, a.count]));
   return INFO_IDS.map((id, order) => {
@@ -94,7 +110,8 @@ export function analyticsReport(sessions, responses, { range = 'all', now = new 
     sessions: s.length,
     survey: surveyFunnel(s),
     lesson: lessonFunnel(s),
-    info: infoTable(s, r),
+    picks: pickTable(r),
+    info: hasInfoHistory(s) ? infoTable(s, r) : null,
     submit: submitStats(s),
   };
 }
