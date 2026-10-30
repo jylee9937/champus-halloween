@@ -12,8 +12,14 @@ const cleanAdminUrl = {
   configurePreviewServer: server => { server.middlewares.use(rewriteAdmin); },
 };
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [cleanAdminUrl],
+  // E2E keeps our Firebase adapter real and replaces only SDK I/O. Never enabled in production.
+  resolve: {
+    alias: mode === 'e2e' ? ['firebase/app', 'firebase/firestore', 'firebase/auth'].map(find => ({
+      find, replacement: resolve(import.meta.dirname, 'e2e/mocks/firebase.mock.js'),
+    })) : [],
+  },
   build: {
     rolldownOptions: {
       input: {
@@ -22,4 +28,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));
