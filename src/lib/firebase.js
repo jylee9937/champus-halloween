@@ -1,8 +1,8 @@
-// Firestore + Auth client. The booth page loads this module lazily (only when submitting);
+// Firestore + Auth client. The booth page loads this module lazily (first analytics write or submit);
 // Auth is imported on demand so it never ships to booth visitors.
 import { initializeApp } from 'firebase/app';
 import {
-  getFirestore, collection, addDoc, getDocs, getDoc, doc, query, where, orderBy, writeBatch, serverTimestamp, Timestamp,
+  getFirestore, collection, addDoc, setDoc, getDocs, getDoc, doc, query, where, orderBy, writeBatch, serverTimestamp, Timestamp,
 } from 'firebase/firestore';
 import { firebaseConfig } from './firebase-config.js';
 import { payloadErrors } from './validate.js';
@@ -52,6 +52,17 @@ export async function submitResponse(payload) {
   return ref.id;
 }
 
+/**
+ * Writes this tab's anonymous analytics doc. The first write creates it with every field; later writes merge
+ * everything except startedAt/expireAt, which rules keep fixed. `stats` comes from tracker.js (absolute values).
+ */
+export async function writeSession(sid, stats, { create }) {
+  const ref = doc(db(), 'sessions', sid);
+  const data = { sid, schemaVersion: 1, ...stats, updatedAt: serverTimestamp() };
+  if (!create) return setDoc(ref, data, { merge: true });
+  return setDoc(ref, { ...data, startedAt: serverTimestamp(), expireAt: Timestamp.fromMillis(Date.now() + RETENTION_MS) });
+}
+
 async function auth() {
   const mod = await import('firebase/auth');
   return { mod, auth: mod.getAuth(getApp()) };
@@ -88,10 +99,8 @@ export async function isAdmin(email) {
   }
 }
 
-/** Deletes responses whose expireAt has passed (admins only). Resolves with how many were deleted. */
-export async function purgeExpired(now = Date.now()) {
-  const cutoff = Timestamp.fromMillis(now - PURGE_MARGIN_MS);
-  const snap = await getDocs(query(collection(db(), 'responses'), where('expireAt', '<', cutoff)));
+async function purgeCollection(name, cutoff) {
+  const snap = await getDocs(query(collection(db(), name), where('expireAt', '<', cutoff)));
   for (let i = 0; i < snap.docs.length; i += BATCH_LIMIT) {
     const batch = writeBatch(db());
     for (const d of snap.docs.slice(i, i + BATCH_LIMIT)) batch.delete(d.ref);
@@ -100,11 +109,39 @@ export async function purgeExpired(now = Date.now()) {
   return snap.docs.length;
 }
 
+/**
+ * Deletes responses and analytics sessions whose expireAt has passed (admins only).
+ * Resolves with how many of each were deleted. A failed sessions purge is logged and counted as 0,
+ * so it never hides the responses result.
+ */
+export async function purgeExpired(now = Date.now()) {
+  const cutoff = Timestamp.fromMillis(now - PURGE_MARGIN_MS);
+  const responses = await purgeCollection('responses', cutoff);
+  let sessions = 0;
+  try {
+    sessions = await purgeCollection('sessions', cutoff);
+  } catch (err) {
+    console.error('[admin] sessions purge failed', err);
+  }
+  return { responses, sessions };
+}
+
+const toDate = v => v?.toDate?.() ?? null;
+
 /** All responses, newest first. `createdAt`/`expireAt` come back as Dates. */
 export async function fetchResponses() {
   const snap = await getDocs(query(collection(db(), 'responses'), orderBy('createdAt', 'desc')));
   return snap.docs.map(d => {
     const v = d.data();
-    return { id: d.id, ...v, createdAt: v.createdAt?.toDate?.() ?? null, expireAt: v.expireAt?.toDate?.() ?? null };
+    return { id: d.id, ...v, createdAt: toDate(v.createdAt), expireAt: toDate(v.expireAt) };
+  });
+}
+
+/** All analytics sessions (one read per doc). Timestamps come back as Dates. */
+export async function fetchSessions() {
+  const snap = await getDocs(collection(db(), 'sessions'));
+  return snap.docs.map(d => {
+    const v = d.data();
+    return { ...v, id: d.id, startedAt: toDate(v.startedAt), updatedAt: toDate(v.updatedAt), expireAt: toDate(v.expireAt) };
   });
 }

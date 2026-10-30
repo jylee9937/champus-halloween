@@ -69,7 +69,41 @@ export async function getDoc(ref) {
   return { exists: () => state.adminEmails.includes(ref.id) };
 }
 
+// Analytics: sessions/{sid}. Ops are named separately so existing response call-order assertions stay exact.
+export async function setDoc(ref, data, options) {
+  if (ref.path !== 'sessions') throw new Error('Unexpected setDoc path: ' + ref.path);
+  const merge = options?.merge === true;
+  call('writeSession', { id: ref.id, merge });
+  (state.sessionWrites ??= []).push({ id: ref.id, merge, data: copy(data), at: Date.now() });
+  if (state.sessionWriteError) throw Object.assign(new Error('Mock session write failure'), { code: state.sessionWriteError });
+  state.sessions ??= [];
+  const i = state.sessions.findIndex(s => s.id === ref.id);
+  const doc = merge && i >= 0 ? { ...state.sessions[i], ...copy(data) } : { id: ref.id, ...copy(data) };
+  if (i >= 0) state.sessions[i] = doc; else state.sessions.push(doc);
+}
+
+function sessionDocs(ref) {
+  const filter = ref.constraints?.find(c => c.op);
+  call(filter ? 'sessionsPurgeQuery' : 'fetchSessions');
+  if (!filter && state.sessionsFetchError) throw new Error('Mock sessions fetch failure');
+  let rows = [...(state.sessions ?? [])];
+  if (filter) rows = rows.filter(r => r.expireAt != null && new Date(r.expireAt).getTime() < filter.value.toMillis());
+  return { docs: rows.map(row => ({
+    id: row.id,
+    ref: { path: 'sessions', id: row.id },
+    data: () => {
+      const { id, ...data } = copy(row);
+      for (const key of ['startedAt', 'updatedAt', 'expireAt']) {
+        const v = data[key];
+        data[key] = typeof v === 'string' ? Timestamp.fromMillis(new Date(v).getTime()) : null;
+      }
+      return data;
+    },
+  })) };
+}
+
 export async function getDocs(ref) {
+  if (ref.path === 'sessions') return sessionDocs(ref);
   if (ref.path !== 'responses') throw new Error('Unexpected collection');
   const filter = ref.constraints.find(c => c.op);
   call(filter ? 'purgeQuery' : 'fetchResponses', {
@@ -100,10 +134,17 @@ export async function getDocs(ref) {
 }
 
 export function writeBatch() {
-  const ids = [];
+  const ids = [], sessionIds = [];
   return {
-    delete: ref => ids.push(ref.id),
+    delete: ref => (ref.path === 'sessions' ? sessionIds : ids).push(ref.id),
     async commit() {
+      if (sessionIds.length) {
+        call('sessionsPurgeCommit', { ids: sessionIds });
+        if (state.sessionsPurgeError) throw new Error('Mock sessions purge failure');
+        state.sessions = state.sessions.filter(s => !sessionIds.includes(s.id));
+        (state.purgedSessionIds ??= []).push(...sessionIds);
+        return;
+      }
       call('purgeCommit', { ids });
       if (state.purgeError) throw new Error('Mock purge failure');
       state.responses = state.responses.filter(r => !ids.includes(r.id));
