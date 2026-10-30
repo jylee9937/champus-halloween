@@ -39,7 +39,7 @@ export { expect };
 
 export const defaultPayload = {
   activities: ['book-club'], activityOther: null, days: [], participation: 'regular',
-  seekingFaithCommunity: false, comment: '', name: '김챔퍼스', department: '소프트웨어학과',
+  seekingFaithCommunity: false, comment: '', name: '김챔퍼스', gender: 'male', department: '소프트웨어학과',
   studentId: '20261234', phone: '01012345678',
 };
 
@@ -53,8 +53,9 @@ export async function assertPayload(page, expected = defaultPayload) {
     createdAt: { __type: 'serverTimestamp' },
     expireAt: { ms: attempts[0].at + 365 * 24 * 60 * 60 * 1000 },
   });
-  // 13 keys: consent is no longer sent (the S5 consent screen was removed).
-  expect(Object.keys(attempts[0].data)).toHaveLength(13);
+  // 14 keys: gender (S6-1) is sent; consent is not (the S5 consent screen was removed).
+  expect(Object.keys(attempts[0].data)).toHaveLength(14);
+  expect(['male', 'female']).toContain(attempts[0].data.gender);
   expect(attempts[0].data).not.toHaveProperty('consent');
   expect(attempts[0].data.phone).toMatch(/^01[0-9]{8,9}$/);
 }
@@ -70,10 +71,16 @@ export async function back(page) {
 export const activity = (page, name) => page.getByRole('group', { name: '하고 싶은 활동' }).getByRole('button', { name: new RegExp(name + '$') });
 export const comment = page => page.getByRole('textbox', { name: '해보고 싶은 활동이나 궁금한 점' });
 
+// Survey progress is spread evenly over the 12 screens, round(i / 11 * 100); the pill counts 10 questions.
+export const PCT = { s0: 0, s1: 9, s2: 18, s3: 27, s3_1: 36, s4: 45, s6: 55, gender: 64, s7: 73, s8: 82, s9: 91, s10: 100 };
+
 export async function progress(page, value, count) {
   await expect(page.getByRole('progressbar', { name: '진행도' })).toHaveAttribute('aria-valuenow', String(value));
-  if (count != null) await expect(page.getByLabel(`설문 9문항 중 ${count}번째`)).toHaveText(`📝 ${count}/9`);
+  if (count != null) await expect(page.getByLabel(`설문 10문항 중 ${count}번째`)).toHaveText(`📝 ${count}/10`);
 }
+
+/** S6-1 성별 options; their accessible names are "1 남" and "2 여". */
+export const gender = (page, label) => page.getByRole('radio', { name: new RegExp(label + '$') });
 
 export async function layout(page) {
   const dimensions = await page.evaluate(() => ({
@@ -117,9 +124,15 @@ export async function toName(page) {
   await page.getByRole('button', { name: '건너뛰기' }).click();
 }
 
-export async function toPhone(page) {
+export async function toGender(page) {
   await toName(page);
   await page.getByRole('textbox', { name: '이름', exact: true }).fill('김챔퍼스');
+  await next(page);
+}
+
+export async function toPhone(page) {
+  await toGender(page);
+  await gender(page, '남').click();
   await next(page);
   await page.getByRole('textbox', { name: '학과', exact: true }).fill('소프트웨어학과');
   await next(page);

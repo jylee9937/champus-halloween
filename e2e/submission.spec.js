@@ -1,4 +1,4 @@
-import { test, expect, toPhone, submit, progress, assertPayload, expectSurveyReward, LESSON_CTA } from './fixtures.js';
+import { test, expect, toPhone, submit, progress, PCT, assertPayload, expectSurveyReward, LESSON_CTA } from './fixtures.js';
 
 test('SC-23 지연 전송 중 이중 탭·Enter 무시, CTA·이전 비활성', async ({ page }) => {
   await toPhone(page);
@@ -12,7 +12,7 @@ test('SC-23 지연 전송 중 이중 탭·Enter 무시, CTA·이전 비활성', 
   await field.press('Enter');
   await field.press('Enter');
   await page.evaluate(() => history.back());
-  await progress(page, 90);
+  await progress(page, PCT.s9);
   await expect.poll(() => page.evaluate(() => window.__e2e.attempts.length)).toBe(1);
   await expect.poll(() => page.evaluate(() => typeof window.__e2e.releaseSubmit)).toBe('function');
   await page.evaluate(() => window.__e2e.releaseSubmit());
@@ -60,7 +60,7 @@ test('SC-26 완료 후 새로고침하면 이름이 있는 S10, 재전송 없음
   await toPhone(page);
   await submit(page);
   await page.reload();
-  await progress(page, 100, 9);
+  await progress(page, PCT.s10, 10);
   await expectSurveyReward(page);
   expect(await page.evaluate(() => window.__e2e.attempts)).toEqual([]);
 });

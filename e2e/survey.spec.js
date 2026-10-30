@@ -1,38 +1,47 @@
 import {
-  test, expect, next, back, activity, comment, progress, layout,
-  toDays, toComment, toName, toPhone, submit, assertPayload, defaultPayload, expectSurveyReward,
+  test, expect, next, back, activity, comment, progress, layout, gender, PCT,
+  toDays, toComment, toName, toGender, toPhone, submit, assertPayload, defaultPayload, expectSurveyReward,
 } from './fixtures.js';
 
-test('SC-01 설문 전체 진행도·S4에서 S6로 바로·정확한 Firestore 문서', async ({ page }) => {
+test('SC-01 설문 전체 진행도·S4에서 S6로 바로·이름 다음 성별·정확한 Firestore 문서', async ({ page }) => {
   await page.goto('/');
   await progress(page, 0, 0);
   await layout(page);
   await expect(page.getByRole('button', { name: '이전으로' })).toBeDisabled();
   await page.getByRole('button', { name: '설문 시작하기' }).click();
-  await progress(page, 10, 1);
+  await progress(page, PCT.s1, 1);
   await layout(page);
   await activity(page, '독서모임').click();
   await next(page);
-  await progress(page, 20, 2);
+  await progress(page, PCT.s2, 2);
   await layout(page);
   await page.getByRole('button', { name: '건너뛰기' }).click();
-  await progress(page, 30, 3);
+  await progress(page, PCT.s3, 3);
   await layout(page);
   await page.getByRole('radio', { name: '정기적으로 함께하고 싶어요' }).click();
   await next(page);
-  await progress(page, 40, 4);
+  await progress(page, PCT.s3_1, 4);
   await layout(page);
   await page.getByRole('radio', { name: /아니요/ }).click();
   await next(page);
-  await progress(page, 50, 5);
+  await progress(page, PCT.s4, 5);
   await layout(page);
   // S5 (privacy notice/consent) was removed: 궁금한 점 goes straight to 이름.
   await page.getByRole('button', { name: '건너뛰기' }).click();
   await expect(page.getByRole('button', { name: '동의하고 계속' })).toHaveCount(0);
   await expect(page.getByText('개인정보 수집·이용 안내')).toHaveCount(0);
   for (const [label, value, pct, count] of [
-    ['이름', '김챔퍼스', 60, 6], ['학과', '소프트웨어학과', 70, 7], ['학번', '20261234', 80, 8],
+    ['이름', '김챔퍼스', PCT.s6, 6], ['성별'], ['학과', '소프트웨어학과', PCT.s7, 8], ['학번', '20261234', PCT.s8, 9],
   ]) {
+    if (label === '성별') {
+      // S6-1 성별 (Figma 64:2687) comes right after the name and is required.
+      await progress(page, PCT.gender, 7);
+      await layout(page);
+      await expect(page.getByRole('button', { name: '하나 골라 줘!' })).toBeDisabled();
+      await gender(page, '남').click();
+      await next(page);
+      continue;
+    }
     await progress(page, pct, count);
     await layout(page);
     const field = page.getByRole('textbox', { name: label, exact: true });
@@ -40,12 +49,12 @@ test('SC-01 설문 전체 진행도·S4에서 S6로 바로·정확한 Firestore 
     await field.fill(value);
     await field.press('Enter');
   }
-  await progress(page, 90, 9);
+  await progress(page, PCT.s9, 10);
   await layout(page);
   await expect(page.getByRole('textbox', { name: '전화번호' })).toBeFocused();
   await page.getByRole('textbox', { name: '전화번호' }).fill('01012345678');
   await page.getByRole('textbox', { name: '전화번호' }).press('Enter');
-  await progress(page, 100, 9);
+  await progress(page, PCT.s10, 10);
   await layout(page);
   await expectSurveyReward(page);
   // Figma 22:1999 fits 390×844 without scrolling, chip included.
@@ -77,13 +86,17 @@ test('SC-02 모든 일반 활동과 기타·모든 요일의 ID 및 선택 순�
   await next(page);
   await comment(page).fill('  향수공방은 언제 해요?  ');
   await next(page);
-  for (const [label, value] of [['이름', ' 김챔퍼스 '], ['학과', ' 소프트웨어학과 '], ['학번', '00']]) {
+  await page.getByRole('textbox', { name: '이름', exact: true }).fill(' 김챔퍼스 ');
+  await next(page);
+  await gender(page, '여').click();
+  await next(page);
+  for (const [label, value] of [['학과', ' 소프트웨어학과 '], ['학번', '00']]) {
     await page.getByRole('textbox', { name: label, exact: true }).fill(value);
     await next(page);
   }
   await submit(page);
   await assertPayload(page, {
-    ...defaultPayload,
+    ...defaultPayload, gender: 'female',
     activities: ['union-worship', 'small-group', 'book-club', 'vibe-coding', 'futsal', 'champs-study', 'edu-volunteer', 'career-mentoring', 'happy-bridge', 'perfume-workshop', 'other'],
     activityOther: '보드게임', days: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
     participation: 'occasional', seekingFaithCommunity: true, comment: '향수공방은 언제 해요?', studentId: '00',
@@ -117,17 +130,17 @@ test('SC-05 기타 공백·필수·100자 제한 및 자동 포커스', async ({
   await expect(page.getByRole('button', { name: '기타 활동을 적어 줘!' })).toBeDisabled();
   await field.fill('   ');
   await field.press('Enter');
-  await progress(page, 10);
+  await progress(page, PCT.s1);
   await field.fill('가'.repeat(101));
   await expect(field).toHaveValue('가'.repeat(100));
   await field.press('Enter');
-  await progress(page, 20);
+  await progress(page, PCT.s2);
 });
 
 test('SC-06 기타 선택 해제 후 남은 글은 null, 고민 중 ID 저장', async ({ page }) => {
   await toPhone(page);
-  // Return through every prior screen (S9 → S1, eight steps without S5), then remove other text through the actual S1 controls.
-  for (let i = 0; i < 8; i++) await back(page);
+  // Return through every prior screen (S9 → S1: nine steps, with 성별 and without S5), then remove other text through the actual S1 controls.
+  for (let i = 0; i < 9; i++) await back(page);
   await activity(page, '기타').click();
   await page.getByRole('textbox', { name: '기타 활동' }).fill('보드게임');
   await activity(page, '아직 고민 중이에요').click();
@@ -138,7 +151,7 @@ test('SC-06 기타 선택 해제 후 남은 글은 null, 고민 중 ID 저장', 
   await next(page);
   await next(page);
   await page.getByRole('button', { name: '건너뛰기' }).click();
-  for (let i = 0; i < 3; i++) await next(page);
+  for (let i = 0; i < 4; i++) await next(page); // 이름 → 성별 (kept) → 학과 → 학번 → 전화번호
   await submit(page);
   await assertPayload(page, { ...defaultPayload, activities: ['undecided'], days: ['flexible'] });
 });
@@ -162,7 +175,7 @@ test('SC-07 SC-08 요일 전체·토글·선택 생략·일정 유동 상호 배
   await flexible.click();
   await flexible.click();
   await page.getByRole('button', { name: '건너뛰기' }).click();
-  await progress(page, 30);
+  await progress(page, PCT.s3);
 });
 
 test('SC-09 SC-10 참여 방식·신앙 공동체 필수 단일 선택, info-only 저장', async ({ page }) => {
@@ -181,7 +194,11 @@ test('SC-09 SC-10 참여 방식·신앙 공동체 필수 단일 선택, info-onl
   await expect(page.getByRole('radio', { name: /아니요/ })).toBeChecked();
   await next(page);
   await page.getByRole('button', { name: '건너뛰기' }).click();
-  for (const [label, value] of [['이름', '김챔퍼스'], ['학과', '소프트웨어학과'], ['학번', '20261234']]) {
+  await page.getByRole('textbox', { name: '이름', exact: true }).fill('김챔퍼스');
+  await next(page);
+  await gender(page, '남').click();
+  await next(page);
+  for (const [label, value] of [['학과', '소프트웨어학과'], ['학번', '20261234']]) {
     await page.getByRole('textbox', { name: label, exact: true }).fill(value);
     await next(page);
   }
@@ -201,11 +218,14 @@ test('SC-11 의견 선택 입력·공백·1000자 제한', async ({ page }) => {
   await expect(comment(page)).toHaveValue('가'.repeat(1000));
 });
 
-for (const [label, limit, pct] of [['이름', 30, 60], ['학과', 50, 70]]) {
+// Enter on a valid name goes to 성별; on a valid department, to 학번.
+for (const [label, limit, pct, nextPct] of [['이름', 30, PCT.s6, PCT.gender], ['학과', 50, PCT.s7, PCT.s8]]) {
   test(`SC-${label === '이름' ? '13' : '14'} ${label} 필수·공백·1자·${limit}자·Enter`, async ({ page }) => {
     await toName(page);
     if (label === '학과') {
       await page.getByRole('textbox', { name: '이름', exact: true }).fill('김');
+      await next(page);
+      await gender(page, '여').click();
       await next(page);
     }
     const field = page.getByRole('textbox', { name: label, exact: true });
@@ -219,9 +239,52 @@ for (const [label, limit, pct] of [['이름', 30, 60], ['학과', 50, 70]]) {
     await field.fill('가'.repeat(limit + 1));
     await expect(field).toHaveValue('가'.repeat(limit));
     await field.press('Enter');
-    await progress(page, pct + 10);
+    await progress(page, nextPct);
   });
 }
+
+test('SC-66 성별 필수 단일 선택·선택 상태·뒤로 가도 유지·female 저장', async ({ page }) => {
+  await toGender(page);
+  // Figma S6-1 · 성별 (64:2687): 초롱이 asks, two options in the S3-1 single-choice scaffold.
+  await progress(page, PCT.gender, 7);
+  await expect(page.getByText('성별을 알려 줘!', { exact: true })).toBeVisible();
+  await expect(page.getByRole('radiogroup').getByRole('radio')).toHaveCount(2);
+  const male = gender(page, '남'), female = gender(page, '여');
+  await expect(page.getByRole('radio', { checked: true })).toHaveCount(0);
+  const cta = page.locator('footer').getByRole('button').first();
+  await expect(cta).toHaveText('하나 골라 줘!');
+  await expect(cta).toBeDisabled();
+  await female.click();
+  await expect(female).toBeChecked();
+  // The existing blue Selected style.
+  await expect(female).toHaveCSS('background-color', 'rgb(221, 244, 255)');
+  await expect(female).toHaveCSS('border-top-color', 'rgb(132, 216, 255)');
+  await expect(male).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+  await male.click();
+  await expect(male).toBeChecked();
+  await expect(female).not.toBeChecked();
+  await expect(page.getByRole('radio', { checked: true })).toHaveCount(1);
+  await expect(page.getByRole('button', { name: '다음', exact: true })).toBeEnabled();
+  await layout(page);
+  // Back to the name and forward again keeps the answer; so does the browser back from 학과.
+  await back(page);
+  await expect(page.getByRole('textbox', { name: '이름', exact: true })).toHaveValue('김챔퍼스');
+  await next(page);
+  await expect(male).toBeChecked();
+  await next(page);
+  await progress(page, PCT.s7, 8);
+  await page.evaluate(() => history.back());
+  await progress(page, PCT.gender, 7);
+  await expect(male).toBeChecked();
+  await female.click();
+  await next(page);
+  for (const [label, value] of [['학과', '소프트웨어학과'], ['학번', '20261234']]) {
+    await page.getByRole('textbox', { name: label, exact: true }).fill(value);
+    await next(page);
+  }
+  await submit(page);
+  await assertPayload(page, { ...defaultPayload, gender: 'female' });
+});
 
 test('SC-15 학번 2–9자리·숫자·오류 연결·공백 제거·앞자리 0', async ({ page }) => {
   await toPhone(page);
@@ -231,7 +294,7 @@ test('SC-15 학번 2–9자리·숫자·오류 연결·공백 제거·앞자리 
   for (const value of ['', '1', '가나다', '12a', '1234567890']) {
     await field.fill(value);
     await field.press('Enter');
-    await progress(page, 80);
+    await progress(page, PCT.s8);
     await expect(page.locator('footer').getByRole('button').first()).toBeDisabled();
     if (value.length > 9 || /\D/.test(value)) {
       await expect(error).toBeVisible();
@@ -252,12 +315,12 @@ test('SC-16 전화번호 필수·길이·01 접두사·비숫자 제거·11자�
   await toPhone(page);
   const field = page.getByRole('textbox', { name: '전화번호' });
   await field.press('Enter');
-  await progress(page, 90);
+  await progress(page, PCT.s9);
   for (const value of ['abc', '010123456', '02123456789']) {
     await field.fill(value);
     await field.press('Enter');
     await expect(page.locator('footer').getByRole('button').first()).toBeDisabled();
-    await progress(page, 90);
+    await progress(page, PCT.s9);
   }
   await field.fill('010-1234-567899');
   await expect(field).toHaveValue('010-1234-5678');
@@ -285,11 +348,11 @@ test('SC-18 Enter 유효성 및 한글 조합 중 이동 금지', async ({ page 
   const name = page.getByRole('textbox', { name: '이름', exact: true });
   await name.fill('김챔퍼스');
   await name.dispatchEvent('keydown', { key: 'Enter', isComposing: true });
-  await progress(page, 60);
+  await progress(page, PCT.s6);
   await name.dispatchEvent('keydown', { key: 'Enter', keyCode: 229 });
-  await progress(page, 60);
+  await progress(page, PCT.s6);
   await name.press('Enter');
-  await progress(page, 70);
+  await progress(page, PCT.gender);
 });
 
 test('SC-22 이전 버튼·브라우저 뒤로 가기에서 모든 답변 유지', async ({ page }) => {
@@ -299,6 +362,8 @@ test('SC-22 이전 버튼·브라우저 뒤로 가기에서 모든 답변 유지
   await expect(page.getByRole('textbox', { name: '학번', exact: true })).toHaveValue('20261234');
   await back(page);
   await expect(page.getByRole('textbox', { name: '학과', exact: true })).toHaveValue('소프트웨어학과');
+  await back(page);
+  await expect(gender(page, '남')).toBeChecked();
   await back(page);
   await expect(page.getByRole('textbox', { name: '이름', exact: true })).toHaveValue('김챔퍼스');
   await back(page); // 이름 → 궁금한 점 directly (no S5)
@@ -310,7 +375,7 @@ test('SC-22 이전 버튼·브라우저 뒤로 가기에서 모든 답변 유지
   await back(page);
   await page.getByRole('button', { name: '월요일', exact: true }).click();
   await page.evaluate(() => history.back());
-  await progress(page, 10);
+  await progress(page, PCT.s1);
   await expect(activity(page, '독서모임')).toHaveAttribute('aria-pressed', 'true');
   await back(page);
   await progress(page, 0);
@@ -323,6 +388,8 @@ test('SC-22 이전 버튼·브라우저 뒤로 가기에서 모든 답변 유지
   await next(page);
   await expect(comment(page)).toHaveValue('뒤로 가도 유지');
   await next(page);
+  await next(page);
+  await expect(gender(page, '남')).toBeChecked();
   for (let i = 0; i < 3; i++) await next(page);
   await expect(page.getByRole('textbox', { name: '전화번호' })).toHaveValue('010-1234-5678');
 });

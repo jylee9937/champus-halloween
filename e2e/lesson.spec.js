@@ -107,7 +107,7 @@ test('SC-33 끝 화면 쿠폰·인스타 CTA·다시 보기에서 수업·점수
 test('SC-34 수업 첫 화면에서 뒤로 가면 설문 완료 쿠폰', async ({ page }) => {
   await enterLesson(page);
   await back(page);
-  await progress(page, 100, 9);
+  await progress(page, 100, 10);
   await expectSurveyReward(page);
 });
 
@@ -117,7 +117,7 @@ test('SC-35 수업 중 새로고침은 S10·퀴즈 점수 미저장', async ({ p
   await next(page);
   await page.getByRole('button', { name: /10월 31일 밤$/ }).click();
   await page.reload();
-  await progress(page, 100, 9);
+  await progress(page, 100, 10);
   await page.getByRole('button', { name: LESSON_CTA, exact: true }).click();
   await expect(page.getByLabel('맞힌 퀴즈 수')).toHaveText('⭐ 0');
 });
