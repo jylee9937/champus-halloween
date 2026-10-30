@@ -7,11 +7,11 @@ Clients can create responses but can't read them. Only allowlisted admins can re
 
 | Item | Value |
 | --- | --- |
-| Project ID | `champus-halloween` |
-| Web app | `champus-booth-web` (config: `firebase apps:sdkconfig WEB --project champus-halloween`) |
+| Project ID | `champus-booth` (Spark plan, no billing, no organization) |
+| Web app | `champus-booth-web` (config: `firebase apps:sdkconfig WEB --project champus-booth`) |
 | Firestore | `(default)`, Native mode, `asia-northeast3` (Seoul) |
 | Auth | Google sign-in provider |
-| Authorized domains | `localhost`, `champus-halloween.firebaseapp.com`, `champus-halloween.web.app`, `champus-halloween.vercel.app` |
+| Authorized domains | `localhost`, `champus-booth.firebaseapp.com`, `champus-booth.web.app`, `champus-halloween.vercel.app` |
 
 The web SDK config is public by design. Access control comes from `firestore.rules`.
 
@@ -60,6 +60,8 @@ Before deploying with `--force`, make sure `firestore.indexes.json` still lists 
 
 The Google provider was enabled with `firebase deploy --only auth`, using a temporary config that held the OAuth support email. That block is deliberately not committed. Change provider settings in the console: Authentication > Sign-in method.
 
+To serve the site from a new domain, add it under Authentication > Settings > Authorized domains.
+
 ## Test rules locally
 
 ```sh
@@ -70,4 +72,8 @@ Point `@firebase/rules-unit-testing` at `127.0.0.1:8080` with the contents of `f
 
 ## Ownership
 
-The project is being re-created under the club's own personal Google account, with no organization, so that access doesn't depend on any one student's university account. The first project was inside a university Workspace organization and has been deleted. Project details above will be updated once the new project exists.
+The project belongs to the club's own personal Google account, with no organization, so that access doesn't depend on any one student's university account. The club account is **Owner**. Helpers get **Editor**, which can be granted directly.
+
+Granting Owner to another person needs an invitation: Google Cloud console > IAM & Admin > IAM > Grant access > role Owner. The invitee must then accept the email invitation.
+
+An earlier project, `champus-halloween`, was created inside a university Workspace organization. It has been deleted and must not be reused.
