@@ -1,4 +1,4 @@
-import { test, expect, savedCoupon, enterLesson, toPhone, submit, activity, layout } from './fixtures.js';
+import { test, expect, savedCoupon, enterLesson, toPhone, submit, activity, layout, chocoCoupon } from './fixtures.js';
 
 test('SC-37 S10 인스타 링크 주소·새 창·noopener', async ({ page, context }) => {
   await savedCoupon(page);
@@ -13,7 +13,7 @@ test('SC-37 S10 인스타 링크 주소·새 창·noopener', async ({ page, cont
   const opened = await popup;
   await opened.waitForLoadState('domcontentloaded');
   expect(await opened.evaluate(() => window.opener === null)).toBe(true);
-  await expect(page.getByRole('region', { name: '핫초코 교환권' })).toBeVisible();
+  await expect(chocoCoupon(page)).toBeVisible();
   await opened.close();
 });
 
@@ -22,6 +22,15 @@ test('SC-39 시스템 다크 모드가 설문·수업·관리자에 적용', asy
   await page.goto('/');
   await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(19, 26, 44)');
   await expect(page.locator('body')).toHaveCSS('color', 'rgb(242, 244, 248)');
+  // S10 hot chocolate coupon and quiz chip in dark tokens: gold-line #8A6C1E, gold-bg #3E3212, gold-fg #FFD24D; green-bg #1F3A17.
+  await savedCoupon(page);
+  const coupon = chocoCoupon(page);
+  await expect(coupon).toHaveCSS('border-top-color', 'rgb(138, 108, 30)');
+  await expect(coupon.locator('.coupon-main')).toHaveCSS('background-color', 'rgb(62, 50, 18)');
+  await expect(coupon.locator('.coupon-name')).toHaveCSS('color', 'rgb(255, 210, 77)');
+  const chip = page.locator('footer').getByText('퀴즈 3개 · 3분', { exact: true });
+  await expect(chip).toHaveCSS('background-color', 'rgb(31, 58, 23)');
+  await expect(chip).toHaveCSS('color', 'rgb(155, 232, 90)');
   await enterLesson(page);
   await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(19, 26, 44)');
   await page.goto('/admin');
@@ -87,6 +96,6 @@ test('SC-44 모션 감소 설정은 애니메이션·전환·축하 종이 제�
 test('SC-58 쿠폰 이름은 HTML로 해석하지 않고 텍스트로 표시', async ({ page }) => {
   const name = '<img src=x onerror=alert(1)>';
   await savedCoupon(page, name);
-  await expect(page.getByRole('region', { name: '핫초코 교환권' })).toContainText(name + '님');
-  await expect(page.getByRole('region', { name: '핫초코 교환권' }).locator('img')).toHaveCount(0);
+  await expect(chocoCoupon(page)).toContainText(name + '님');
+  await expect(chocoCoupon(page).locator('img')).toHaveCount(0);
 });

@@ -226,13 +226,13 @@ export function createSurvey({ shell, nav, onLesson }) {
         <div class="confetti"></div>
         <div class="eyebrow">설문 완료</div>
         <h1 class="title">신청 <span class="o">완료</span>! 🎉</h1>
-        ${couponHtml(doneName, '할로윈 이야기를 안 봐도 받을 수 있어')}
+        ${couponHtml(doneName, { note: '할로윈 퀴즈까지 풀면 쿠키도 줄게! 🍪' })}
         ${ask('고마워! 활동 일정은<br><b>연락처</b>로 알려 줄게 📱', pumpkin('happy'))}
         <a class="ig-link" href="${INSTAGRAM_URL}" target="_blank" rel="noopener">📷 인스타그램 @champus_ajou</a>
       </div>`,
-      extras: { sub: '핫초코 기다리는 동안 할로윈 이야기도 볼래?' },
+      extras: { chip: '퀴즈 3개 · 3분', sub: '할로윈의 진짜 의미, 3분 퀴즈로 알아보자!' },
       mount: el => confetti(el.querySelector('.confetti')),
-      cta: () => ['할로윈의 진짜 의미 알기 🎃'],
+      cta: () => ['할로윈 퀴즈 풀고 쿠키 받기 🍪'],
     },
   ];
   const indexOf = id => screens.findIndex(s => s.id === id);

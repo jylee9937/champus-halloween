@@ -1,6 +1,6 @@
 import {
   test, expect, next, back, activity, comment, progress, layout,
-  toDays, toComment, toName, toPhone, submit, assertPayload, defaultPayload,
+  toDays, toComment, toName, toPhone, submit, assertPayload, defaultPayload, expectSurveyReward,
 } from './fixtures.js';
 
 test('SC-01 SC-12 설문 전체 진행도·개인정보 동의·정확한 Firestore 문서', async ({ page }) => {
@@ -51,7 +51,11 @@ test('SC-01 SC-12 설문 전체 진행도·개인정보 동의·정확한 Firest
   await page.getByRole('textbox', { name: '전화번호' }).press('Enter');
   await progress(page, 100, 9);
   await layout(page);
-  await expect(page.getByRole('region', { name: '핫초코 교환권' })).toContainText('김챔퍼스님');
+  await expectSurveyReward(page);
+  // Figma 22:1999 fits 390×844 without scrolling, chip included.
+  if (page.viewportSize().width === 390) {
+    expect(await page.getByRole('main').evaluate(main => main.scrollHeight - main.clientHeight)).toBeLessThanOrEqual(0);
+  }
   await expect(page.getByRole('button', { name: '이전으로' })).toBeDisabled();
   await assertPayload(page);
 });

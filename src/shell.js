@@ -4,7 +4,7 @@
 export function createShell() {
   const $ = id => document.getElementById(id);
   const stage = $('stage'), backBtn = $('backBtn'), fill = $('fill'), prog = $('prog'), pill = $('pill'),
-    bottom = $('bottom'), bottomSub = $('bottomSub'), nextBtn = $('nextBtn'), linkBtn = $('linkBtn'),
+    bottom = $('bottom'), bottomChip = $('bottomChip'), bottomSub = $('bottomSub'), nextBtn = $('nextBtn'), linkBtn = $('linkBtn'),
     banner = $('banner'), bannerIcon = $('bannerIcon'), bannerTitle = $('bannerTitle'), bannerSub = $('bannerSub'), contBtn = $('contBtn');
 
   return {
@@ -45,8 +45,10 @@ export function createShell() {
       nextBtn.className = 'btn';
     },
 
-    /** Optional line above the CTA and underlined link below it. */
-    extras({ sub = '', link = '' } = {}) {
+    /** Optional chip and line above the CTA, and underlined link below it. */
+    extras({ chip = '', sub = '', link = '' } = {}) {
+      bottomChip.hidden = !chip;
+      bottomChip.textContent = chip;
       bottomSub.hidden = !sub;
       bottomSub.textContent = sub;
       linkBtn.hidden = !link;
