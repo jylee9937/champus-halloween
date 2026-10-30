@@ -20,7 +20,7 @@ The web SDK config is public by design. Access control comes from `firestore.rul
 - `firebase.json`: Firestore and emulator config
 - `.firebaserc`: default project
 - `firestore.rules`: security rules (the data contract is enforced here)
-- `firestore.indexes.json`: indexes. `responses.expireAt` is excluded from indexing because it is only used for TTL.
+- `firestore.indexes.json`: indexes (defaults only; the purge query uses the automatic single-field index on `expireAt`)
 
 ## Data contract (`responses/{autoId}`)
 
@@ -33,7 +33,7 @@ The client must:
 - set `activityOther` to a 1–100 character string when `'other'` is in `activities`, and to `null` otherwise.
 - not repeat entries in `activities` or `days`.
 
-Responses can't be updated or deleted by any client.
+No client can update a response. Only an admin can delete one, and only after its `expireAt` has passed.
 
 ## Admins
 
@@ -44,12 +44,11 @@ Responses can't be updated or deleted by any client.
 
 ## Retention (1 year)
 
-Each response carries `expireAt`. A Firestore TTL policy on collection group `responses`, field `expireAt`, deletes expired documents. TTL deletion is not instant: it usually happens within about 24h after expiry.
+The project runs on the free Spark plan with no billing, so there is **no TTL policy** (TTL requires Blaze).
 
-TTL requires the **Blaze** (billing) plan. To enable it after upgrading, use either of these:
+Expired responses are purged by the admin page instead. When it opens, it queries `responses` where `expireAt < now` and deletes the results. The rules allow `delete` only for an admin, and only when `resource.data.expireAt < request.time`. Even a buggy client can't delete an unexpired response.
 
-- Console: Firestore > Time-to-live > Create policy > collection group `responses`, timestamp field `expireAt`.
-- Config: add `"ttl": true` to the `expireAt` override in `firestore.indexes.json`, then deploy indexes.
+Deletion therefore happens the next time an admin opens the page after expiry. If nobody opens it for a long time, an admin can also delete expired documents in the Firebase console.
 
 ## Deploy
 
@@ -57,7 +56,7 @@ TTL requires the **Blaze** (billing) plan. To enable it after upgrading, use eit
 npx -y firebase-tools@latest deploy --only firestore:rules,firestore:indexes
 ```
 
-Before deploying with `--force`, make sure `firestore.indexes.json` still lists every index and override you need. `--force` deletes the ones it doesn't list.
+Before deploying with `--force`, make sure `firestore.indexes.json` still lists every index and override you need. `--force` deletes the ones it doesn't list. Do not exempt `expireAt` from indexing: the purge query needs it.
 
 The Google provider was enabled with `firebase deploy --only auth`, using a temporary config that held the OAuth support email. That block is deliberately not committed. Change provider settings in the console: Authentication > Sign-in method.
 
@@ -67,8 +66,8 @@ The Google provider was enabled with `firebase deploy --only auth`, using a temp
 npx -y firebase-tools@latest emulators:start --only firestore
 ```
 
-Point `@firebase/rules-unit-testing` at `127.0.0.1:8080` with the contents of `firestore.rules`. The rules were verified against 85 allow/deny cases: valid and invalid creates, reads by anonymous users, non-admins, unverified accounts and admins, update/delete, and the allowlist.
+Point `@firebase/rules-unit-testing` at `127.0.0.1:8080` with the contents of `firestore.rules`. The rules were verified against 97 allow/deny cases: valid and invalid creates, reads by anonymous users, non-admins, unverified accounts and admins, update, the expired-only admin delete (single and batched), and the allowlist.
 
 ## Ownership
 
-The project was created inside a university Google Workspace organization. To keep it after the creating account goes away, the club account must hold the **Owner** role. External owners can only be added by invitation: Google Cloud console > IAM & Admin > IAM > Grant access > role Owner. The invitee must then accept the email invitation.
+The project is being re-created under the club's own personal Google account, with no organization, so that access doesn't depend on any one student's university account. The first project was inside a university Workspace organization and has been deleted. Project details above will be updated once the new project exists.

@@ -1,9 +1,10 @@
 rules_version = '2';
 
 // CHAMPUS Halloween booth: sign-up survey responses (personal data).
-// - Anyone may create a strictly validated response; nobody may update/delete it.
+// - Anyone may create a strictly validated response; nobody may update it.
 // - Only allowlisted admins (admins/{email}) may read responses.
-// - Documents carry expireAt (~1 year) and are removed by a Firestore TTL policy.
+// - Documents carry expireAt (~1 year). Admins may delete a response only once it
+//   has expired (the admin page purges expired docs); no TTL policy (no billing).
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -81,7 +82,10 @@ service cloud.firestore {
     match /responses/{responseId} {
       allow create: if validResponse(request.resource.data);
       allow read: if isAdmin();          // get + list
-      allow update, delete: if false;
+      allow update: if false;
+      allow delete: if isAdmin()
+        && resource.data.expireAt is timestamp
+        && resource.data.expireAt < request.time;
     }
 
     // Allowlist: a signed-in user may only check their own entry.

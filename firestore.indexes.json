@@ -1,10 +1,4 @@
 {
   "indexes": [],
-  "fieldOverrides": [
-    {
-      "collectionGroup": "responses",
-      "fieldPath": "expireAt",
-      "indexes": []
-    }
-  ]
+  "fieldOverrides": []
 }
