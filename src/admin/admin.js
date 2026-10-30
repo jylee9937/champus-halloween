@@ -65,6 +65,8 @@ function responsesPanel() {
   const dupes = rows.length - unique.length;
   return `<section class="adm-stats" aria-label="요약">
       <div class="adm-stat"><span>응답자</span><b>${s.respondents}<small>명</small></b><em>연락처 기준 중복 제외</em></div>
+      <div class="adm-stat"><span>성별</span><b>남 ${s.male} <small>·</small> 여 ${s.female}</b><em>${s.respondents - s.male - s.female
+        ? `성별 없는 이전 응답 ${s.respondents - s.male - s.female}명` : '연락처 기준 중복 제외'}</em></div>
       <div class="adm-stat"><span>신앙 공동체 '네'</span><b>${s.faithYes}<small>명</small></b><em>기독교 활동 안내 대상</em></div>
       <div class="adm-stat wide"><span>활동별 인원</span>
         <ul class="adm-acts">${s.activities.map(a =>

@@ -29,6 +29,12 @@ export const DAYS = [
 ];
 export const FLEXIBLE = { id: 'flexible', label: '일정에 따라 달라요' };
 
+// S6-1 성별 (Figma 64:2687). Saved as `gender`; responses from before this question have none.
+export const GENDERS = [
+  { id: 'male', label: '남' },
+  { id: 'female', label: '여' },
+];
+
 export const PARTICIPATION = [
   { id: 'regular', label: '정기적으로 함께하고 싶어요' },
   { id: 'occasional', label: '일정이 맞는 활동에 가끔 참여하고 싶어요' },
@@ -38,3 +44,4 @@ export const PARTICIPATION = [
 export const activityName = id => ACTIVITIES.find(a => a.id === id)?.name ?? id;
 export const dayLabel = id => (id === FLEXIBLE.id ? FLEXIBLE.label : DAYS.find(d => d.id === id)?.label ?? id);
 export const participationLabel = id => PARTICIPATION.find(p => p.id === id)?.label ?? id ?? '';
+export const genderLabel = id => GENDERS.find(g => g.id === id)?.label ?? '—';

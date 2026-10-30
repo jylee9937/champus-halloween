@@ -4,12 +4,12 @@ import {
   emptyAnswers, toggleActivity, toggleDay, activitiesComplete, isValidStudentId, studentIdHasError,
   isValidPhone, phoneDigits, formatPhone, buildPayload, payloadErrors,
 } from '../src/lib/validate.js';
-import { ACTIVITIES, activityName } from '../src/survey/data.js';
+import { ACTIVITIES, GENDERS, activityName, genderLabel } from '../src/survey/data.js';
 
 const filled = () => ({
   ...emptyAnswers(),
   activities: ['futsal', 'book-club'], days: ['sat', 'mon'], participation: 'regular', seekingFaithCommunity: false,
-  comment: '  궁금해요  ', name: ' 테스트 ', department: '소프트웨어학과', studentId: '00', phone: '010-0000-0000',
+  comment: '  궁금해요  ', name: ' 테스트 ', gender: 'female', department: '소프트웨어학과', studentId: '00', phone: '010-0000-0000',
 });
 
 test('undecided is exclusive with every other activity', () => {
@@ -69,6 +69,7 @@ test('payload matches the data contract exactly', () => {
     seekingFaithCommunity: false,
     comment: '궁금해요',
     name: '테스트',
+    gender: 'female',
     department: '소프트웨어학과',
     studentId: '00',
     phone: '01000000000',
@@ -109,4 +110,19 @@ test('payloadErrors catches contract violations', () => {
   assert.deepEqual(payloadErrors({ ...p, phone: '010-0000-0000' }), ['phone']);
   assert.deepEqual(payloadErrors({ ...p, extra: 1 }), ['keys']);
   assert.deepEqual(payloadErrors({ ...p, comment: 'x'.repeat(1001) }), ['comment']);
+});
+
+test('gender (S6-1) is required and is male or female', () => {
+  assert.deepEqual(GENDERS.map(g => [g.id, g.label]), [['male', '남'], ['female', '여']]);
+  assert.equal(emptyAnswers().gender, null);
+  assert.equal(buildPayload({ ...filled(), gender: 'male' }).gender, 'male');
+  const p = buildPayload(filled());
+  for (const bad of [null, '', 'M', 'Male', 'other', 1, true]) {
+    assert.deepEqual(payloadErrors({ ...p, gender: bad }), ['gender'], String(bad));
+  }
+  const withoutGender = { ...p };
+  delete withoutGender.gender;
+  assert.deepEqual(payloadErrors(withoutGender), ['keys', 'gender']);
+  // The admin shows '—' for responses saved before the question existed.
+  assert.deepEqual([genderLabel('male'), genderLabel('female'), genderLabel(undefined)], ['남', '여', '—']);
 });

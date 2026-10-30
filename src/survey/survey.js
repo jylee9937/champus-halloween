@@ -1,17 +1,17 @@
-// Activity sign-up survey: S0 intro → S1…S9 one question per screen → S10 completion coupon.
+// Activity sign-up survey: S0 intro → ten questions, one per screen (S1…S9 plus S6-1 성별) → S10 completion coupon.
 // Figma: survey flow 21:1370, states 21:1371, components 15:79.
 import { pumpkin, candle } from '../lib/characters.js';
 import { confetti, couponHtml, prefersReducedMotion, INSTAGRAM_URL } from '../lib/ui.js';
 import { track } from '../lib/analytics.js';
 import { attachScrollHint } from '../lib/scroll-hint.js';
-import { ACTIVITIES, DAYS, FLEXIBLE, PARTICIPATION } from './data.js';
+import { ACTIVITIES, DAYS, FLEXIBLE, GENDERS, PARTICIPATION } from './data.js';
 import {
   LIMITS, emptyAnswers, toggleActivity, toggleDay, activitiesComplete, isValidName, isValidDepartment,
   isValidStudentId, studentIdHasError, isValidPhone, phoneDigits, formatPhone, buildPayload,
 } from '../lib/validate.js';
 
 const DONE_KEY = 'champus:done';
-const QUESTIONS = 9;
+const QUESTIONS = 10;
 
 const ask = (text, who = candle('happy')) => `<div class="line">${who}<div class="bubble">${text}</div></div>`;
 const isEnter = e => e.key === 'Enter' && !e.isComposing && e.keyCode !== 229;
@@ -45,7 +45,7 @@ export function createSurvey({ shell, nav, onLesson }) {
 
   const screens = [
     {
-      id: 's0', progress: 0, count: 0,
+      id: 's0', count: 0,
       html: () => `<div class="screen">
         <div class="eyebrow">CHAMPUS · 기독교 봉사 동아리</div>
         <h1 class="title"><span class="o">챔퍼스</span>를<br>소개할게!</h1>
@@ -53,12 +53,12 @@ export function createSurvey({ shell, nav, onLesson }) {
           <div class="speaker"><div class="bubble bubble-top">챔퍼스?<br>그게 뭐야?</div>${pumpkin('think')}</div>
           <div class="speaker"><div class="bubble bubble-top">함께 배우고<br>나누는 공동체야!</div>${candle('happy')}</div>
         </div>
-        <p class="sub">교육봉사·독서모임·풋살·스터디·멘토링까지!<br>질문 9개, 2분이면 끝! 📝</p>
+        <p class="sub">교육봉사·독서모임·풋살·스터디·멘토링까지!<br>질문 10개, 2분이면 끝! 📝</p>
       </div>`,
       cta: () => ['설문 시작하기'],
     },
     {
-      id: 's1', progress: 10, count: 1,
+      id: 's1', count: 1,
       // Detailed cards (Figma S1 22:1572, Activity Card Layout=Detailed 15:106): intro and schedule up front.
       // The accessible name is the activity name; intro and 🕒 schedule are its description.
       html: () => `<div class="screen">
@@ -102,7 +102,7 @@ export function createSurvey({ shell, nav, onLesson }) {
         : ['다음'],
     },
     {
-      id: 's2', progress: 20, count: 2,
+      id: 's2', count: 2,
       html: () => `<div class="screen">
         ${ask('참여하기 편한<br>요일은 언제야?')}
         <p class="sub">여러 개 골라도 되고, 안 골라도 괜찮아</p>
@@ -124,7 +124,7 @@ export function createSurvey({ shell, nav, onLesson }) {
       cta: () => [a.days.length ? '다음' : '건너뛰기'],
     },
     {
-      id: 's3', progress: 30, count: 3,
+      id: 's3', count: 3,
       html: () => `<div class="screen">
         ${ask('어떻게<br>함께하고 싶어?')}
         ${choice(PARTICIPATION.map(p => ({ value: p.id, label: p.label })), a.participation)}
@@ -133,7 +133,7 @@ export function createSurvey({ shell, nav, onLesson }) {
       cta: () => (a.participation ? ['다음'] : ['하나 골라 줘!', true]),
     },
     {
-      id: 's3-1', progress: 40, count: 4,
+      id: 's3-1', count: 4,
       html: () => `<div class="screen">
         ${ask('학교 안에서<br>신앙 공동체를<br>찾고 있어?')}
         <p class="sub">찾고 있다면<br>기독교 활동 안내를 따로 보내 줄게 🙏</p>
@@ -143,7 +143,7 @@ export function createSurvey({ shell, nav, onLesson }) {
       cta: () => (a.seekingFaithCommunity !== null ? ['다음'] : ['하나 골라 줘!', true]),
     },
     {
-      id: 's4', progress: 50, count: 5,
+      id: 's4', count: 5,
       html: () => `<div class="screen">
         ${ask('해보고 싶은 활동이나<br>궁금한 점 있어?')}
         <p class="sub">없으면 건너뛰어도 돼!</p>
@@ -158,7 +158,7 @@ export function createSurvey({ shell, nav, onLesson }) {
     },
     // S5 (privacy notice + consent) was removed: S4 goes straight to S6. Analytics keeps s6=7 etc.
     {
-      id: 's6', progress: 60, count: 6, focus: true,
+      id: 's6', count: 6, focus: true,
       html: () => `<div class="screen">
         ${ask('이름이 뭐야?')}
         ${input(`id="nameInput" type="text" maxlength="${LIMITS.name}" placeholder="이름을 적어 줘" aria-label="이름" autocomplete="name" enterkeyhint="next"`)}
@@ -170,7 +170,18 @@ export function createSurvey({ shell, nav, onLesson }) {
       cta: () => (isValidName(a.name) ? ['다음'] : ['이름을 적어 줘!', true]),
     },
     {
-      id: 's7', progress: 70, count: 7, focus: true,
+      // S6-1 성별 (Figma 64:2687): required single choice, same scaffold as S3-1.
+      // The sessions contract has no step for it, so analytics reports it as S6 (same maxSurveyStep as the name screen).
+      id: 's6-1', count: 7, track: 's6',
+      html: () => `<div class="screen">
+        ${ask('성별을 알려 줘!')}
+        ${choice(GENDERS.map(g => ({ value: g.id, label: g.label })), a.gender)}
+      </div>`,
+      mount: el => bindChoice(el, GENDERS.map(g => g.id), v => { a.gender = v; }),
+      cta: () => (a.gender ? ['다음'] : ['하나 골라 줘!', true]),
+    },
+    {
+      id: 's7', count: 8, focus: true,
       html: () => `<div class="screen">
         ${ask('무슨 과야?')}
         ${input(`id="deptInput" type="text" maxlength="${LIMITS.department}" placeholder="학과를 적어 줘" aria-label="학과" autocomplete="off" enterkeyhint="next"`)}
@@ -179,7 +190,7 @@ export function createSurvey({ shell, nav, onLesson }) {
       cta: () => (isValidDepartment(a.department) ? ['다음'] : ['학과를 적어 줘!', true]),
     },
     {
-      id: 's8', progress: 80, count: 8, focus: true,
+      id: 's8', count: 9, focus: true,
       html: () => `<div class="screen">
         ${ask('학번을 알려 줘!')}
         ${input(`id="sidInput" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="20" placeholder="학번을 적어 줘" aria-label="학번" aria-describedby="sidError" autocomplete="off" enterkeyhint="next"`,
@@ -203,7 +214,7 @@ export function createSurvey({ shell, nav, onLesson }) {
       cta: () => (!a.studentId ? ['학번을 적어 줘!', true] : ['다음', !isValidStudentId(a.studentId)]),
     },
     {
-      id: 's9', progress: 90, count: 9, focus: true,
+      id: 's9', count: 10, focus: true,
       html: () => `<div class="screen">
         ${ask('연락받을<br>전화번호는?')}
         ${input(`id="phoneInput" type="tel" inputmode="tel" placeholder="010-1234-5678" aria-label="전화번호" aria-describedby="phoneHint" autocomplete="tel" enterkeyhint="send"`)}
@@ -215,7 +226,7 @@ export function createSurvey({ shell, nav, onLesson }) {
         : ['제출하기', !isValidPhone(a.phone)]),
     },
     {
-      id: 's10', progress: 100, count: 9,
+      id: 's10', count: 10,
       html: () => `<div class="screen">
         <div class="confetti"></div>
         <div class="eyebrow">설문 완료</div>
@@ -303,8 +314,9 @@ export function createSurvey({ shell, nav, onLesson }) {
     removeScrollHint = null;
     shell.hideBanner();
     screenEl = shell.show(s.html(), dir);
-    track.screen(s.id.replace('-', '_'));
-    shell.progress(s.progress);
+    track.screen(s.track ?? s.id.replace('-', '_'));
+    // Spread evenly over the survey screens: S0 = 0 … S10 = 100.
+    shell.progress(Math.round(i / (screens.length - 1) * 100));
     shell.pill(`📝 ${s.count}/${QUESTIONS}`, `설문 ${QUESTIONS}문항 중 ${s.count}번째`);
     shell.extras(s.extras);
     s.mount?.(screenEl);

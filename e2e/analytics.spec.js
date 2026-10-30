@@ -1,9 +1,9 @@
-import { test, expect, activity, next, submit, savedCoupon, LESSON_CTA } from './fixtures.js';
+import { test, expect, activity, next, gender, submit, savedCoupon, LESSON_CTA } from './fixtures.js';
 
 // Analytics is off in e2e mode unless a test opts in with mockOptions { analytics: true };
 // writes then go to the SDK mock (window.__e2e.sessionWrites / sessions), never to Firebase.
 
-async function surveyToPhone(page) {
+async function surveyToGender(page) {
   await page.getByRole('button', { name: '건너뛰기' }).click();
   await page.getByRole('radio', { name: '정기적으로 함께하고 싶어요' }).click();
   await next(page);
@@ -11,6 +11,12 @@ async function surveyToPhone(page) {
   await next(page);
   await page.getByRole('button', { name: '건너뛰기' }).click();
   await page.getByRole('textbox', { name: '이름', exact: true }).fill('김챔퍼스');
+  await next(page);
+}
+
+async function surveyToPhone(page) {
+  await surveyToGender(page);
+  await gender(page, '남').click();
   await next(page);
   await page.getByRole('textbox', { name: '학과', exact: true }).fill('소프트웨어학과');
   await next(page);
@@ -92,6 +98,33 @@ test.describe('분석 기록 켬', () => {
     const [doc] = await page.evaluate(() => window.__e2e.sessions);
     expect(doc).toMatchObject({ startedAt: { __type: 'serverTimestamp' }, lastScreen: 's2', infoOpens: zeros });
     expect(doc.expireAt).toEqual(create.data.expireAt);
+  });
+
+  test('SC-A7 성별 화면은 이름과 같은 s6으로 기록, sessions 계약은 그대로', async ({ page }) => {
+    // The tracker persists every change synchronously, so sessionStorage shows what each screen reported.
+    const stats = () => page.evaluate(() => JSON.parse(sessionStorage.getItem('champus:analytics')).stats);
+    await page.goto('/');
+    await page.getByRole('button', { name: '설문 시작하기' }).click();
+    await activity(page, '독서모임').click();
+    await next(page);
+    await surveyToGender(page);
+    await expect(page.getByText('성별을 알려 줘!', { exact: true })).toBeVisible();
+    expect(await stats()).toMatchObject({ lastScreen: 's6', maxSurveyStep: 7 });
+    await gender(page, '여').click();
+    await next(page);
+    await expect(page.getByRole('textbox', { name: '학과', exact: true })).toBeVisible();
+    expect(await stats()).toMatchObject({ lastScreen: 's7', maxSurveyStep: 8 });
+    // Coming back to 성별 reports s6 again (it is not an ignored, unknown screen).
+    await page.getByRole('button', { name: '이전으로' }).click();
+    await expect(gender(page, '여')).toBeChecked();
+    expect(await stats()).toMatchObject({ lastScreen: 's6', maxSurveyStep: 8 });
+    // Writes are debounced, so the first one may not have gone out yet.
+    await expect.poll(() => page.evaluate(() => window.__e2e.sessionWrites?.at(-1)?.data.lastScreen)).toBe('s6');
+    const writes = await page.evaluate(() => window.__e2e.sessionWrites);
+    // Same fields as before: no new step id, no gender in analytics.
+    expect(Object.keys(writes[0].data)).toHaveLength(15);
+    expect(writes.slice(1).map(w => Object.keys(w.data).length)).toEqual(writes.slice(1).map(() => 13));
+    expect(JSON.stringify(writes)).not.toMatch(/s6_1|s6-1|gender|female/);
   });
 
   test('SC-A5 S10 인스타·수업 시작·끝 화면 인스타·다시 보기를 기록', async ({ page }) => {

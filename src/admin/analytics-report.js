@@ -5,7 +5,8 @@ import { dedupeByPhone, summarize, formatTime } from './report.js';
 
 export const SURVEY_LABELS = {
   s0: '챔퍼스 소개', s1: '관심 활동', s2: '편한 요일', s3: '참여 방식', s3_1: '신앙 공동체', s4: '궁금한 점',
-  s6: '이름', s7: '학과', s8: '학번', s9: '연락처', s10: '신청 완료',
+  // s6 covers the name and the 성별 screens: both report as s6 (no new step in the sessions contract).
+  s6: '이름·성별', s7: '학과', s8: '학번', s9: '연락처', s10: '신청 완료',
 };
 export const LESSON_LABELS = [
   '시작 화면', '귀신의 날?', '퀴즈 1', '이름 속 비밀', '11월 1일', '성인이란?',

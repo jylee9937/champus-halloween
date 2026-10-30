@@ -1,11 +1,12 @@
 // Answer rules and the Firestore payload builder. Pure functions — no DOM — so they run under `node --test`.
-import { ACTIVITIES, DAYS, FLEXIBLE, PARTICIPATION } from '../survey/data.js';
+import { ACTIVITIES, DAYS, FLEXIBLE, GENDERS, PARTICIPATION } from '../survey/data.js';
 
 export const LIMITS = { activityOther: 100, comment: 1000, name: 30, department: 50 };
 
 const ACTIVITY_IDS = ACTIVITIES.map(a => a.id);
 const DAY_IDS = [...DAYS.map(d => d.id), FLEXIBLE.id];
 const PARTICIPATION_IDS = PARTICIPATION.map(p => p.id);
+const GENDER_IDS = GENDERS.map(g => g.id);
 
 const STUDENT_ID_RE = /^[0-9]{2,9}$/;
 const PHONE_RE = /^01[0-9]{8,9}$/;
@@ -38,7 +39,7 @@ export function formatPhone(d) {
 export function emptyAnswers() {
   return {
     activities: [], activityOther: '', days: [], participation: null, seekingFaithCommunity: null,
-    comment: '', name: '', department: '', studentId: '', phone: '',
+    comment: '', name: '', gender: null, department: '', studentId: '', phone: '',
   };
 }
 
@@ -73,13 +74,14 @@ export function buildPayload(a) {
     seekingFaithCommunity: a.seekingFaithCommunity,
     comment: a.comment.trim(),
     name: a.name.trim(),
+    gender: a.gender,
     department: a.department.trim(),
     studentId: a.studentId,
     phone: phoneDigits(a.phone),
   };
 }
 
-const PAYLOAD_KEYS = ['activities', 'activityOther', 'days', 'participation', 'seekingFaithCommunity', 'comment', 'name', 'department', 'studentId', 'phone'];
+const PAYLOAD_KEYS = ['activities', 'activityOther', 'days', 'participation', 'seekingFaithCommunity', 'comment', 'name', 'gender', 'department', 'studentId', 'phone'];
 
 // Returns the names of fields that break the contract (empty when the payload is good to send).
 export function payloadErrors(p) {
@@ -98,6 +100,7 @@ export function payloadErrors(p) {
   if (typeof p.seekingFaithCommunity !== 'boolean') bad.push('seekingFaithCommunity');
   if (typeof p.comment !== 'string' || p.comment.length > LIMITS.comment) bad.push('comment');
   if (typeof p.name !== 'string' || !within(p.name, LIMITS.name)) bad.push('name');
+  if (!GENDER_IDS.includes(p.gender)) bad.push('gender');
   if (typeof p.department !== 'string' || !within(p.department, LIMITS.department)) bad.push('department');
   if (typeof p.studentId !== 'string' || !STUDENT_ID_RE.test(p.studentId)) bad.push('studentId');
   if (typeof p.phone !== 'string' || !PHONE_RE.test(p.phone)) bad.push('phone');
