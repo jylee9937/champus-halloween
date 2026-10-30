@@ -157,7 +157,7 @@ export function createSurvey({ shell, nav, onLesson }) {
           <dl>
             <div><dt>수집 항목</dt><dd>이름, 학과, 학번, 연락처</dd></div>
             <div><dt>이용 목적</dt><dd>관심 활동 안내와 일정 조율</dd></div>
-            <div><dt>보관 기간</dt><dd>수집 후 1년 (이후 바로 삭제)</dd></div>
+            <div><dt>보관 기간</dt><dd>수집 후 1년 (이후 삭제)</dd></div>
           </dl>
           <p>동의하지 않으면 활동 안내 연락을 받을 수 없어요.</p>
         </section>
