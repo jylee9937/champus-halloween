@@ -1,0 +1,13 @@
+{
+  "name": "champus-firestore-rules-tests",
+  "private": true,
+  "type": "module",
+  "description": "Firestore security rules tests (run against the local emulator; needs Java 11+).",
+  "scripts": {
+    "test": "npx -y firebase-tools@latest emulators:exec --only firestore --project demo-champus \"node --test --test-concurrency=1 *.test.mjs\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^6.0.0",
+    "firebase": "^13.1.0"
+  }
+}
