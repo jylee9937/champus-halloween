@@ -2,7 +2,7 @@ name: Playwright E2E
 
 on:
   push:
-    branches: [test/e2e]
+    branches: [main]
   pull_request:
     branches: [main]
 
