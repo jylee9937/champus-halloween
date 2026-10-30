@@ -28,15 +28,31 @@ test('funnel: no flag when nothing drops, and no division by zero', () => {
   assert.deepEqual(empty.map(r => [r.pct, r.dropRate]), [[0, 0], [0, 0]]);
 });
 
-test('survey funnel counts sessions with maxSurveyStep ≥ each step', () => {
+test('survey funnel counts sessions with maxSurveyStep ≥ each step, without the retired S5', () => {
   const rows = surveyFunnel([
     session({ maxSurveyStep: 0 }), session({ maxSurveyStep: 1 }), session({ maxSurveyStep: 4 }), session({ maxSurveyStep: 11 }),
   ]);
-  assert.equal(rows.length, 12);
-  assert.deepEqual(rows.map(r => r.id), ['s0', 's1', 's2', 's3', 's3_1', 's4', 's5', 's6', 's7', 's8', 's9', 's10']);
-  assert.deepEqual(rows.map(r => r.count), [4, 3, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1]);
+  assert.equal(rows.length, 11);
+  assert.deepEqual(rows.map(r => r.id), ['s0', 's1', 's2', 's3', 's3_1', 's4', 's6', 's7', 's8', 's9', 's10']);
+  assert.deepEqual(rows.map(r => r.count), [4, 3, 2, 2, 2, 1, 1, 1, 1, 1, 1]);
   assert.equal(rows.filter(r => r.biggestDrop).length, 1);
   assert.equal(rows[0].label, '챔퍼스 소개');
+  assert.equal(rows[6].label, '이름');
+});
+
+test('S4 → S6 drop is direct; old sessions that stopped on S5 still render (counted up to S4)', () => {
+  const rows = surveyFunnel([
+    session({ maxSurveyStep: 5, lastScreen: 's4' }),
+    session({ maxSurveyStep: 6, lastScreen: 's5' }), // recorded before S5 was removed
+    session({ maxSurveyStep: 7, lastScreen: 's6' }),
+    session({ maxSurveyStep: 11, lastScreen: 's10' }),
+  ]);
+  const s4 = rows.find(r => r.id === 's4'), s6 = rows.find(r => r.id === 's6');
+  assert.equal(rows.some(r => r.id === 's5'), false);
+  assert.equal(s4.count, 4);
+  assert.equal(s6.count, 2);
+  assert.equal(s6.drop, 2);
+  assert.equal(s6.dropRate, 0.5);
 });
 
 test('lesson funnel is based on submitted sessions only', () => {
@@ -96,7 +112,7 @@ test("'today' keeps sessions and responses from today's Korea date only", () => 
   const today = analyticsReport(sessions, responses, { range: 'today', now });
   assert.equal(today.day, '2026-10-31');
   assert.equal(today.sessions, 1);
-  assert.equal(today.survey[11].count, 1);
+  assert.equal(today.survey.at(-1).count, 1);
   assert.equal(today.info.find(r => r.id === 'futsal').picks, 1);
   const all = analyticsReport(sessions, responses, { range: 'all', now });
   assert.equal(all.sessions, 2);

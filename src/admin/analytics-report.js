@@ -1,11 +1,11 @@
 // Analytics tab math over sessions/{sid} docs (one per browser tab). Pure — runs under `node --test`.
 import { ACTIVITIES } from '../survey/data.js';
-import { SURVEY_STEPS, LESSON_STEPS, INFO_IDS } from '../lib/tracker.js';
+import { SURVEY_STEPS, RETIRED_STEPS, LESSON_STEPS, INFO_IDS } from '../lib/tracker.js';
 import { dedupeByPhone, summarize, formatTime } from './report.js';
 
 export const SURVEY_LABELS = {
   s0: '챔퍼스 소개', s1: '관심 활동', s2: '편한 요일', s3: '참여 방식', s3_1: '신앙 공동체', s4: '궁금한 점',
-  s5: '개인정보 동의', s6: '이름', s7: '학과', s8: '학번', s9: '연락처', s10: '신청 완료',
+  s6: '이름', s7: '학과', s8: '학번', s9: '연락처', s10: '신청 완료',
 };
 export const LESSON_LABELS = [
   '시작 화면', '귀신의 날?', '퀴즈 1', '이름 속 비밀', '11월 1일', '성인이란?',
@@ -30,10 +30,14 @@ export function funnel(steps) {
   return out;
 }
 
-/** Sessions reaching each survey screen (maxSurveyStep ≥ i), s0 → s10. */
-export const surveyFunnel = sessions => funnel(SURVEY_STEPS.map((id, i) => ({
-  id, label: SURVEY_LABELS[id], count: sessions.filter(s => num(s.maxSurveyStep) >= i).length,
-})));
+/**
+ * Sessions reaching each survey screen (maxSurveyStep ≥ its index), s0 → s10. The retired S5 has no row,
+ * so the S4 → S6 drop is computed directly; old sessions that stopped on S5 (max 6) count as reaching S4.
+ */
+export const surveyFunnel = sessions => funnel(SURVEY_STEPS
+  .map((id, i) => ({ id, i }))
+  .filter(({ id }) => !RETIRED_STEPS.has(id))
+  .map(({ id, i }) => ({ id, label: SURVEY_LABELS[id], count: sessions.filter(s => num(s.maxSurveyStep) >= i).length })));
 
 /** Of submitted sessions: how far into the lesson they got, plus completions and restarts. */
 export function lessonFunnel(sessions) {
