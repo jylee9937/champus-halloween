@@ -25,12 +25,12 @@ The web SDK config is public by design. Access control comes from `firestore.rul
 
 ## Data contract (`responses/{autoId}`)
 
-All 14 fields are required, and no other fields are allowed. See `firestore.rules` for the exact checks.
+The 13 contract fields are required, `consent` is optional, and no other fields are allowed. See `firestore.rules` for the exact checks.
 The client must:
 
 - set `createdAt` to `serverTimestamp()`. A client clock value is rejected.
 - set `expireAt` to a `Timestamp` about 365 days after now. The rules accept now + 364d to now + 366d.
-- send `schemaVersion: 1` and `consent: true`.
+- send `schemaVersion: 1`. `consent` may be omitted (the consent screen was removed); if it is sent, it must be `true`.
 - set `activityOther` to a 1–100 character string when `'other'` is in `activities`, and to `null` otherwise.
 - not repeat entries in `activities` or `days`.
 
@@ -102,7 +102,7 @@ npm install
 npm test
 ```
 
-`test/rules/firestore.rules.test.mjs` holds 216 allow/deny cases covering:
+`test/rules/firestore.rules.test.mjs` holds 226 allow/deny cases covering:
 
 - responses: creates, reads, update, delete and the expired-only purge
 - sessions: the web app's create and merge-update pattern, every monotonic violation, keys and types, caps, heavy updates, admin-only reads and the expired-only delete

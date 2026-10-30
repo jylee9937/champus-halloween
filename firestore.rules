@@ -30,13 +30,14 @@ service cloud.firestore {
     }
 
     function validResponse(d) {
-      let fields = [
+      // `consent` is optional (the consent screen was removed); if sent it must be true.
+      let required = [
         'schemaVersion', 'activities', 'activityOther', 'days', 'participation',
         'seekingFaithCommunity', 'comment', 'name', 'department', 'studentId',
-        'phone', 'consent', 'createdAt', 'expireAt'
+        'phone', 'createdAt', 'expireAt'
       ];
-      return d.keys().hasOnly(fields)
-        && d.keys().hasAll(fields)
+      return d.keys().hasOnly(required.concat(['consent']))
+        && d.keys().hasAll(required)
 
         && d.schemaVersion is int
         && d.schemaVersion == 1
@@ -71,8 +72,7 @@ service cloud.firestore {
         && d.phone is string
         && d.phone.matches('^01[0-9]{8,9}$')
 
-        && d.consent is bool
-        && d.consent == true
+        && (!('consent' in d) || (d.consent is bool && d.consent == true))
 
         && d.createdAt is timestamp
         && d.createdAt == request.time

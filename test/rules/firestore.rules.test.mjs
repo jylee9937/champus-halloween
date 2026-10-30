@@ -133,8 +133,18 @@ deny("response: phone 12 digits", createResponse(anon, response({ phone: "010123
 deny("response: phone with dashes", createResponse(anon, response({ phone: "010-1234-5678" })));
 deny("response: phone 02 prefix", createResponse(anon, response({ phone: "02012345678" })));
 deny("response: phone trailing newline", createResponse(anon, response({ phone: "01012345678\n" })));
+// consent is optional (no consent screen); if present it must be true
+allow("response: with consent true", createResponse(anon, response({ consent: true })));
+allow("response: without consent", createResponse(anon, response({ consent: undefined })));
+allow("response: without consent, other with text", createResponse(anon, response({ consent: undefined, activities: ["other"], activityOther: "보드게임" })));
 deny("response: consent false", createResponse(anon, response({ consent: false })));
 deny("response: consent string", createResponse(anon, response({ consent: "true" })));
+deny("response: consent null", createResponse(anon, response({ consent: null })));
+deny("response: consent number", createResponse(anon, response({ consent: 1 })));
+deny("response: without consent, missing phone", createResponse(anon, response({ consent: undefined, phone: undefined })));
+deny("response: without consent, extra field", createResponse(anon, response({ consent: undefined, agreed: true })));
+deny("response: without consent, bad studentId", createResponse(anon, response({ consent: undefined, studentId: "1" })));
+deny("response: without consent, client createdAt", createResponse(anon, response({ consent: undefined, createdAt: Timestamp.now() })));
 deny("response: createdAt client time", createResponse(anon, response({ createdAt: Timestamp.now() })));
 deny("response: expireAt 300d", createResponse(anon, response({ expireAt: Timestamp.fromMillis(Date.now() + 300 * DAY) })));
 deny("response: expireAt 363d", createResponse(anon, response({ expireAt: Timestamp.fromMillis(Date.now() + 363 * DAY) })));
