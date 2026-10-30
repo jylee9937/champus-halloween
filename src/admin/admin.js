@@ -1,6 +1,6 @@
 // Admin page: Google sign-in → allowlist check (admins/{email}) → responses, summary and CSV export.
 import '../styles/admin.css';
-import { watchAuth, signInWithGoogle, signOut, isAdmin, fetchResponses, NotConfiguredError } from '../lib/firebase.js';
+import { watchAuth, signInWithGoogle, signOut, isAdmin, purgeExpired, fetchResponses, NotConfiguredError } from '../lib/firebase.js';
 import { escapeHtml } from '../lib/ui.js';
 import { COLUMNS, dedupeByPhone, newestFirst, summarize, toCells, toCsv, csvFilename } from './report.js';
 
@@ -8,6 +8,7 @@ const root = document.getElementById('admin');
 let user = null;
 let rows = [];
 let showDupes = false;
+let purged = 0;
 
 const gate = (title, body = '', actions = '') => `<section class="adm-gate">
   <div class="adm-card">
@@ -52,6 +53,7 @@ function renderData() {
         <button class="adm-btn" data-action="signout">로그아웃</button>
       </div>
     </header>
+    ${purged > 0 ? `<p class="adm-notice" role="status">🧹 1년 지난 응답 ${purged}개를 정리했어요</p>` : ''}
     <section class="adm-stats" aria-label="요약">
       <div class="adm-stat"><span>응답자</span><b>${s.respondents}<small>명</small></b><em>연락처 기준 중복 제외</em></div>
       <div class="adm-stat"><span>신앙 공동체 '네'</span><b>${s.faithYes}<small>명</small></b><em>기독교 활동 안내 대상</em></div>
@@ -124,12 +126,19 @@ loading();
 watchAuth(async u => {
   user = u;
   rows = [];
+  purged = 0;
   if (!u) return renderSignedOut();
   loading();
   try {
     if (!(await isAdmin(u.email))) return renderDenied();
   } catch (err) {
     return showError(err);
+  }
+  // Responses are kept for a year. Clean up on every admin load; a failure here must not hide the data.
+  try {
+    purged = await purgeExpired();
+  } catch (err) {
+    console.error('[admin] purge failed', err);
   }
   await load();
 }).catch(err => {

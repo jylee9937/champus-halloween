@@ -27,6 +27,8 @@ body{font:500 15px/1.5 "Noto Sans KR",sans-serif}
 .adm-user{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:14px}
 .adm-user span{margin-right:4px}
 
+.adm-notice{margin:0 0 16px;padding:10px 14px;border-radius:12px;background:var(--blue-bg);border:2px solid var(--blue-line);color:var(--blue-fg);font:800 16px var(--display)}
+
 /* summary */
 .adm-stats{display:grid;grid-template-columns:repeat(2,minmax(180px,220px)) 1fr;gap:12px;margin-bottom:20px}
 .adm-stat{display:flex;flex-direction:column;gap:2px;background:var(--surface);border:2px solid var(--line);border-bottom-width:5px;border-radius:18px;padding:16px 18px}

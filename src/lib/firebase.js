@@ -2,7 +2,7 @@
 // Auth is imported on demand so it never ships to booth visitors.
 import { initializeApp } from 'firebase/app';
 import {
-  getFirestore, collection, addDoc, getDocs, getDoc, doc, query, orderBy, serverTimestamp, Timestamp,
+  getFirestore, collection, addDoc, getDocs, getDoc, doc, query, where, orderBy, writeBatch, serverTimestamp, Timestamp,
 } from 'firebase/firestore';
 import { firebaseConfig } from './firebase-config.js';
 import { payloadErrors } from './validate.js';
@@ -15,6 +15,10 @@ export class NotConfiguredError extends Error {
 }
 
 const RETENTION_MS = 365 * 24 * 60 * 60 * 1000;
+// Rules allow deleting only when expireAt < request.time (server clock), and a batch fails as a whole,
+// so leave a margin for an admin laptop whose clock runs ahead. Anything skipped goes on the next load.
+const PURGE_MARGIN_MS = 10 * 60 * 1000;
+const BATCH_LIMIT = 500;
 // addDoc never rejects while offline (the write just waits in the queue), so give up after a while and let the user retry.
 const SUBMIT_TIMEOUT_MS = 15000;
 
@@ -82,6 +86,18 @@ export async function isAdmin(email) {
     if (err?.code === 'permission-denied') return false;
     throw err;
   }
+}
+
+/** Deletes responses whose expireAt has passed (admins only). Resolves with how many were deleted. */
+export async function purgeExpired(now = Date.now()) {
+  const cutoff = Timestamp.fromMillis(now - PURGE_MARGIN_MS);
+  const snap = await getDocs(query(collection(db(), 'responses'), where('expireAt', '<', cutoff)));
+  for (let i = 0; i < snap.docs.length; i += BATCH_LIMIT) {
+    const batch = writeBatch(db());
+    for (const d of snap.docs.slice(i, i + BATCH_LIMIT)) batch.delete(d.ref);
+    await batch.commit();
+  }
+  return snap.docs.length;
 }
 
 /** All responses, newest first. `createdAt`/`expireAt` come back as Dates. */
