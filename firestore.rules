@@ -1,0 +1,102 @@
+rules_version = '2';
+
+// CHAMPUS Halloween booth: sign-up survey responses (personal data).
+// - Anyone may create a strictly validated response; nobody may update it.
+// - Only allowlisted admins (admins/{email}) may read responses.
+// - Documents carry expireAt (~1 year). Admins may delete a response only once it
+//   has expired (the admin page purges expired docs); no TTL policy (no billing).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && exists(/databases/$(database)/documents/admins/$(request.auth.token.email));
+    }
+
+    function isStr(v, minLen, maxLen) {
+      return v is string && v.size() >= minLen && v.size() <= maxLen;
+    }
+
+    function noDuplicates(l) {
+      return l.toSet().size() == l.size();
+    }
+
+    function validActivityOther(d) {
+      return (('other' in d.activities) && isStr(d.activityOther, 1, 100))
+        || (!('other' in d.activities) && d.activityOther == null);
+    }
+
+    function validResponse(d) {
+      let fields = [
+        'schemaVersion', 'activities', 'activityOther', 'days', 'participation',
+        'seekingFaithCommunity', 'comment', 'name', 'department', 'studentId',
+        'phone', 'consent', 'createdAt', 'expireAt'
+      ];
+      return d.keys().hasOnly(fields)
+        && d.keys().hasAll(fields)
+
+        && d.schemaVersion is int
+        && d.schemaVersion == 1
+
+        && d.activities is list
+        && d.activities.size() >= 1
+        && d.activities.size() <= 12
+        && d.activities.hasOnly([
+          'union-worship', 'small-group', 'book-club', 'vibe-coding', 'futsal',
+          'career-mentoring', 'edu-volunteer', 'champs-study', 'happy-bridge',
+          'perfume-workshop', 'undecided', 'other'
+        ])
+        && noDuplicates(d.activities)
+        && validActivityOther(d)
+
+        && d.days is list
+        && d.days.size() <= 8
+        && d.days.hasOnly(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun', 'flexible'])
+        && noDuplicates(d.days)
+
+        && d.participation is string
+        && d.participation in ['regular', 'occasional', 'info-only']
+
+        && d.seekingFaithCommunity is bool
+
+        && isStr(d.comment, 0, 1000)
+        && isStr(d.name, 1, 30)
+        && isStr(d.department, 1, 50)
+
+        && d.studentId is string
+        && d.studentId.matches('^[0-9]{2,9}$')
+        && d.phone is string
+        && d.phone.matches('^01[0-9]{8,9}$')
+
+        && d.consent is bool
+        && d.consent == true
+
+        && d.createdAt is timestamp
+        && d.createdAt == request.time
+        && d.expireAt is timestamp
+        && d.expireAt >= request.time + duration.value(364, 'd')
+        && d.expireAt <= request.time + duration.value(366, 'd');
+    }
+
+    match /responses/{responseId} {
+      allow create: if validResponse(request.resource.data);
+      allow read: if isAdmin();          // get + list
+      allow update: if false;
+      allow delete: if isAdmin()
+        && resource.data.expireAt is timestamp
+        && resource.data.expireAt < request.time;
+    }
+
+    // Allowlist: a signed-in user may only check their own entry.
+    // Entries are managed with admin credentials (console / Admin SDK), never by clients.
+    match /admins/{email} {
+      allow get: if request.auth != null && request.auth.token.email == email;
+      allow list, create, update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
