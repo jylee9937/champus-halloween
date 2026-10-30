@@ -340,7 +340,20 @@ export function createSurvey({ shell, nav, onLesson }) {
     return true;
   }
 
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
+  // Modal keyboard: Esc closes (focus returns to the ⓘ that opened it); Tab/Shift+Tab cycle inside the sheet.
+  // The page behind is inert, but without this trap Shift+Tab would leave the document for the browser UI.
+  document.addEventListener('keydown', e => {
+    if (!sheetRoot.firstChild) return;
+    if (e.key === 'Escape') { closeSheet(); return; }
+    if (e.key !== 'Tab') return;
+    const items = [...sheetRoot.querySelectorAll('.sheet button:not([disabled])')];
+    const i = items.indexOf(document.activeElement);
+    const wrapTo = e.shiftKey ? (i <= 0 ? items.at(-1) : null) : (i < 0 || i === items.length - 1 ? items[0] : null);
+    if (wrapTo) {
+      e.preventDefault();
+      wrapTo.focus();
+    }
+  });
 
   /* ---------- flow ---------- */
 
