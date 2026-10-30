@@ -126,21 +126,61 @@ export async function toPhone(page) {
   await next(page);
 }
 
+// Two reward tiers (Figma Reward Coupon 47:90): the survey earns a hot chocolate, the finished lesson hot chocolate + cookie.
+export const chocoCoupon = page => page.getByRole('region', { name: '핫초코 교환권', exact: true });
+export const cookieCoupon = page => page.getByRole('region', { name: '핫초코 + 쿠키 교환권', exact: true });
+export const LESSON_CTA = '할로윈 퀴즈 풀고 쿠키 받기 🍪';
+
+/** S10 (Figma 22:1999): hot chocolate coupon with the cookie hint; quiz chip and line above the lesson CTA. */
+export async function expectSurveyReward(page, name = '김챔퍼스') {
+  const coupon = chocoCoupon(page);
+  await expect(coupon).toContainText(name + '님');
+  await expect(coupon.locator('.coupon-title')).toHaveText('핫초코 교환권');
+  await expect(coupon.locator('.coupon-icon')).toHaveText('☕');
+  await expect(coupon).toContainText('할로윈 퀴즈까지 풀면 쿠키도 줄게! 🍪');
+  await expect(coupon).not.toContainText('할로윈 이야기를 안 봐도');
+  await expect(coupon.locator('.coupon-ribbon')).toHaveCount(0);
+  await expect(cookieCoupon(page)).toHaveCount(0);
+  const footer = page.locator('footer');
+  await expect(footer.getByText('퀴즈 3개 · 3분', { exact: true })).toBeVisible();
+  await expect(footer.getByText('할로윈의 진짜 의미, 3분 퀴즈로 알아보자!', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: LESSON_CTA, exact: true })).toBeEnabled();
+  // Chip, then line, then CTA, as in the Figma bottom bar.
+  const y = text => footer.getByText(text, { exact: true }).evaluate(el => el.getBoundingClientRect().top);
+  const [chip, line, cta] = [await y('퀴즈 3개 · 3분'), await y('할로윈의 진짜 의미, 3분 퀴즈로 알아보자!'), await y(LESSON_CTA)];
+  expect(chip).toBeLessThan(line);
+  expect(line).toBeLessThan(cta);
+}
+
+/** Lesson end (Figma 10:515): hot chocolate + cookie coupon, earned once all 3 quizzes are answered. */
+export async function expectLessonReward(page, name = '김챔퍼스') {
+  const coupon = cookieCoupon(page);
+  await expect(coupon).toContainText(name + '님');
+  await expect(coupon.locator('.coupon-ribbon')).toHaveText('퀴즈 완료 🎉');
+  await expect(coupon.locator('.coupon-icon')).toHaveText('☕🍪');
+  await expect(coupon.locator('.coupon-title')).toHaveText('핫초코 + 쿠키 교환권');
+  await expect(coupon.locator('.coupon-title b')).toHaveText('쿠키');
+  await expect(coupon).toContainText('부스 스태프에게 이 화면을 보여 줘!');
+  await expect(coupon).toContainText('핫초코를 이미 받았다면 쿠키만 받아 가!');
+  await expect(chocoCoupon(page)).toHaveCount(0);
+  await expect(page.locator('footer').getByText('퀴즈 3개 · 3분')).toBeHidden();
+}
+
 export async function submit(page) {
   await page.getByRole('textbox', { name: '전화번호' }).fill('01012345678');
   await page.getByRole('button', { name: '제출하기' }).click();
-  await expect(page.getByRole('region', { name: '핫초코 교환권' })).toContainText('김챔퍼스님');
+  await expect(chocoCoupon(page)).toContainText('김챔퍼스님');
 }
 
 export async function savedCoupon(page, name = '김챔퍼스') {
   await page.goto('/');
   await page.evaluate(value => sessionStorage.setItem('champus:done', JSON.stringify({ done: true, name: value })), name);
   await page.reload();
-  await expect(page.getByRole('region', { name: '핫초코 교환권' })).toContainText(name + '님');
+  await expect(chocoCoupon(page)).toContainText(name + '님');
 }
 
 export async function enterLesson(page) {
   await savedCoupon(page);
-  await page.getByRole('button', { name: '할로윈의 진짜 의미 알기 🎃' }).click();
+  await page.getByRole('button', { name: LESSON_CTA, exact: true }).click();
   await expect(page.getByRole('heading', { name: /할로윈의.*진짜 뜻/ })).toBeVisible();
 }

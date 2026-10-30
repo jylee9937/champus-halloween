@@ -21,13 +21,22 @@ export function confetti(container) {
   }
 }
 
-// Figma: Reward Coupon (37:74). `note` is the optional second stub line.
-export function couponHtml(name, note) {
-  return `<section class="coupon" aria-label="핫초코 교환권">
+// Figma: Reward Coupon set (47:90). The survey earns a hot chocolate (Reward=Hot Choco, 37:74);
+// finishing the lesson earns hot chocolate + cookie (Reward=Hot Choco + Cookie, 47:74).
+const REWARDS = {
+  choco: { label: '핫초코 교환권', icon: '☕', title: '<b>핫초코</b> 교환권' },
+  cookie: { label: '핫초코 + 쿠키 교환권', icon: '☕🍪', title: '핫초코 + <b>쿠키</b> 교환권', ribbon: '퀴즈 완료 🎉' },
+};
+
+// `note` is the optional second stub line.
+export function couponHtml(name, { reward = 'choco', note = '' } = {}) {
+  const r = REWARDS[reward];
+  return `<section class="coupon ${reward}" aria-label="${r.label}">
+    ${r.ribbon ? `<p class="coupon-ribbon">${r.ribbon}</p>` : ''}
     <div class="coupon-main">
-      <div class="coupon-icon" aria-hidden="true">☕</div>
+      <div class="coupon-icon" aria-hidden="true">${r.icon}</div>
       <div class="coupon-text">
-        <p class="coupon-title"><b>핫초코</b> 교환권</p>
+        <p class="coupon-title">${r.title}</p>
         <span class="coupon-name">${escapeHtml(name)}님</span>
       </div>
     </div>

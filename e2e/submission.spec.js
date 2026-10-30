@@ -1,4 +1,4 @@
-import { test, expect, toPhone, submit, progress, assertPayload } from './fixtures.js';
+import { test, expect, toPhone, submit, progress, assertPayload, expectSurveyReward, LESSON_CTA } from './fixtures.js';
 
 test('SC-23 지연 전송 중 이중 탭·Enter 무시, CTA·이전 비활성', async ({ page }) => {
   await toPhone(page);
@@ -61,8 +61,7 @@ test('SC-26 완료 후 새로고침하면 이름이 있는 S10, 재전송 없음
   await submit(page);
   await page.reload();
   await progress(page, 100, 9);
-  await expect(page.getByRole('region', { name: '핫초코 교환권' })).toContainText('김챔퍼스님');
-  await expect(page.getByRole('button', { name: '할로윈의 진짜 의미 알기 🎃' })).toBeVisible();
+  await expectSurveyReward(page);
   expect(await page.evaluate(() => window.__e2e.attempts)).toEqual([]);
 });
 
@@ -83,7 +82,7 @@ test('SC-28 설문·퀴즈 전 과정 저장 쓰기에는 완료와 이름만 �
   const expected = { done: true, name: '김챔퍼스' };
   expect(await page.evaluate(() => ({ ...sessionStorage }))).toEqual({ 'champus:done': JSON.stringify(expected) });
   expect(await page.evaluate(() => ({ ...localStorage }))).toEqual({});
-  await page.getByRole('button', { name: '할로윈의 진짜 의미 알기 🎃' }).click();
+  await page.getByRole('button', { name: LESSON_CTA, exact: true }).click();
   const answers = { 2: '10월 31일 밤', 7: '믿음의 선배들을 기억하며 기도했다', 9: '모든 성인의 날, 그 전날 밤' };
   for (let step = 0; step < 10; step++) {
     if (answers[step]) {

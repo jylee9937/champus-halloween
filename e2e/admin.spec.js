@@ -14,7 +14,7 @@ const seeds = [
     createdAt: '2026-10-30T02:00:00Z',
   }),
   response('latest', {
-    name: '김최신', department: '소프트웨어학과', activities: ['book-club', 'futsal'],
+    name: '김최신', department: '소프트웨어학과', activities: ['book-club', 'futsal', 'champs-study'],
     days: ['mon', 'sat'], seekingFaithCommunity: true, comment: '최신 의견', createdAt: '2026-10-30T03:00:00Z',
   }),
 ];
@@ -24,7 +24,7 @@ test.use({ mockOptions: { responses: seeds } });
 async function login(page) {
   await page.goto('/admin');
   await page.getByRole('button', { name: 'Google로 로그인' }).click();
-  await expect(page.getByRole('heading', { name: '🎃 챔퍼스 설문 응답' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '🐑 챔퍼스 설문 응답' })).toBeVisible();
 }
 
 const rows = page => page.getByRole('table').locator('tbody').getByRole('row');
@@ -34,6 +34,9 @@ test('SC-45 로그인 전에는 설문 데이터·관리자 조회·삭제 요�
   await expect(page.getByRole('heading', { name: '관리자 로그인' })).toBeVisible();
   await expect(page.getByRole('table')).toHaveCount(0);
   expect(await page.evaluate(() => window.__e2e.calls.map(c => c.op))).toEqual(['initializeApp', 'watchAuth']);
+  // Decorative lamb, not a pumpkin, on the admin gate and tab icon.
+  await expect(page.locator('.adm-logo')).toHaveText('🐑');
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', /🐑/);
 });
 
 test('SC-46 비관리자 접근 거절·데이터 미조회·로그아웃', async ({ page }) => {
@@ -68,7 +71,7 @@ test.describe('이미 로그인한 관리자', () => {
   test.use({ mockOptions: { responses: seeds, user: { email: 'admin@example.test' } } });
   test('SC-48 기존 로그인 상태에서 /admin 바로 열기', async ({ page }) => {
     await page.goto('/admin');
-    await expect(page.getByRole('heading', { name: '🎃 챔퍼스 설문 응답' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '🐑 챔퍼스 설문 응답' })).toBeVisible();
     await expect(rows(page)).toHaveCount(2);
     expect(await page.evaluate(() => window.__e2e.calls.some(c => c.op === 'signIn'))).toBe(false);
   });
@@ -97,10 +100,15 @@ test('SC-50 요약은 중복 제외 응답자·신앙 네·활동별 인원, 토
     await page.getByRole('checkbox', { name: /중복 응답도 보기/ }).setChecked(showDupes);
     await expect(summary.getByText('응답자', { exact: true }).locator('..')).toContainText('2명');
     await expect(summary.getByText("신앙 공동체 '네'", { exact: true }).locator('..')).toContainText('1명');
-    for (const [name, count] of [['독서모임', 1], ['풋살 모임', 2], ['기타', 1], ['향수공방', 0], ['아직 고민 중이에요', 0]]) {
+    for (const [name, count] of [['독서모임', 1], ['풋살 모임', 2], ['스터디 모임', 1], ['기타', 1], ['향수공방', 0], ['아직 고민 중이에요', 0]]) {
       await expect(summary.getByRole('listitem').filter({ hasText: name })).toHaveText(new RegExp(name + '\\s*' + count + '$'));
     }
-    await expect(summary.getByRole('listitem')).toHaveCount(12);
+    // Booth order (Figma S1-A), with champs-study shown as 📝 스터디 모임 and happy-bridge as 🌱.
+    await expect(summary.getByRole('listitem')).toHaveText([
+      '⛪ 캠퍼스 연합예배', '🙏 소그룹 예배', '📚 독서모임', '💻 바이브 코딩', '⚽ 풋살 모임', '📝 스터디 모임',
+      '✏️ 교육 봉사', '💼 취업 멘토링', '🌱 해피브릿지', '🌸 향수공방', '🤔 아직 고민 중이에요', '✍️ 기타',
+    ].map(label => new RegExp('^' + label + '\\s*\\d+$')));
+    await expect(summary).not.toContainText("챔'S");
   }
 });
 
@@ -116,7 +124,7 @@ test('SC-51 CSV 실제 다운로드·UTF-8 BOM·한국어·따옴표·개행·�
   const header = '"제출 시각","이름","학과","학번","연락처","활동","기타 활동","요일","참여 방식","신앙 공동체","궁금한 점"';
   const expected = '\uFEFF' + [
     header,
-    '"2026-10-30 12:00","김최신","소프트웨어학과","20261234","010-1111-2222","독서모임, 풋살 모임","","월, 토","정기적으로 함께하고 싶어요","네","최신 의견"',
+    '"2026-10-30 12:00","김최신","소프트웨어학과","20261234","010-1111-2222","독서모임, 풋살 모임, 스터디 모임","","월, 토","정기적으로 함께하고 싶어요","네","최신 의견"',
     '"2026-10-30 11:00","\'=HYPERLINK(""x"")","학과","20260002","010-3333-4444","풋살 모임, 기타","보드게임","일정에 따라 달라요","우선 활동 안내를 받아보고 싶어요","아니요","첫 줄,""인용""\n다음 줄"',
     '',
   ].join('\r\n');

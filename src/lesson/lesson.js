@@ -1,5 +1,6 @@
 // "할로윈의 진짜 뜻" — the 11-screen lesson with 3 quizzes, ported from the original lesson page.
-// Changes from the original: the end screen follows Figma 10:515 (coupon + Instagram CTA + restart link),
+// Changes from the original: the end screen follows Figma 10:515 (hot chocolate + cookie coupon + Instagram CTA + restart link),
+// reached only after all 3 quizzes are answered (right or wrong),
 // back on screen 1 leaves the lesson, and nothing about quiz results is stored.
 import { pumpkin, candle } from '../lib/characters.js';
 import { confetti, couponHtml, INSTAGRAM_URL } from '../lib/ui.js';
@@ -96,7 +97,7 @@ export function createLesson({ shell, nav, getName, onExit }) {
           <div class="stars" aria-hidden="true">${[0,1,2].map(i=>`<span class="${i<score?'':'dim'}">⭐</span>`).join('')}</div>
           <div>퀴즈 3개 중 <b>${score}개</b> 정답!</div>
         </div>
-        ${couponHtml(getName())}
+        ${couponHtml(getName(), { reward: 'cookie', note: '핫초코를 이미 받았다면 쿠키만 받아 가!' })}
       </div>`}
   ];
 

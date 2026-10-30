@@ -1,6 +1,6 @@
 import {
   test, expect, next, back, activity, comment, progress, layout,
-  toDays, toComment, toName, toPhone, submit, assertPayload, defaultPayload,
+  toDays, toComment, toName, toPhone, submit, assertPayload, defaultPayload, expectSurveyReward,
 } from './fixtures.js';
 
 test('SC-01 SC-12 설문 전체 진행도·개인정보 동의·정확한 Firestore 문서', async ({ page }) => {
@@ -51,7 +51,11 @@ test('SC-01 SC-12 설문 전체 진행도·개인정보 동의·정확한 Firest
   await page.getByRole('textbox', { name: '전화번호' }).press('Enter');
   await progress(page, 100, 9);
   await layout(page);
-  await expect(page.getByRole('region', { name: '핫초코 교환권' })).toContainText('김챔퍼스님');
+  await expectSurveyReward(page);
+  // Figma 22:1999 fits 390×844 without scrolling, chip included.
+  if (page.viewportSize().width === 390) {
+    expect(await page.getByRole('main').evaluate(main => main.scrollHeight - main.clientHeight)).toBeLessThanOrEqual(0);
+  }
   await expect(page.getByRole('button', { name: '이전으로' })).toBeDisabled();
   await assertPayload(page);
 });
@@ -59,7 +63,12 @@ test('SC-01 SC-12 설문 전체 진행도·개인정보 동의·정확한 Firest
 test('SC-02 모든 일반 활동과 기타·모든 요일의 ID 및 선택 순서 정규화', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: '설문 시작하기' }).click();
-  const names = ['캠퍼스 연합예배', '소그룹 예배', '독서모임', '바이브 코딩', '풋살 모임', '취업 멘토링', '교육 봉사', "챔'S 스터디", '해피브릿지', '향수공방'];
+  const names = ['캠퍼스 연합예배', '소그룹 예배', '독서모임', '바이브 코딩', '풋살 모임', '스터디 모임', '교육 봉사', '취업 멘토링', '해피브릿지', '향수공방'];
+  // Tile order is the booth order (Figma S1-A); the study group's old label is gone.
+  await expect(page.getByRole('group', { name: '하고 싶은 활동' }).locator('.act-name')).toHaveText([...names, '아직 고민 중이에요', '기타']);
+  await expect(page.getByRole('group', { name: '하고 싶은 활동' }).locator('.act-emoji'))
+    .toHaveText(['⛪', '🙏', '📚', '💻', '⚽', '📝', '✏️', '💼', '🌱', '🌸', '🤔', '✍️']);
+  await expect(page.getByRole('main')).not.toContainText("챔'S");
   for (const name of [...names].reverse()) await activity(page, name).click();
   await activity(page, '기타').click();
   await page.getByRole('textbox', { name: '기타 활동' }).fill('  보드게임  ');
@@ -80,7 +89,7 @@ test('SC-02 모든 일반 활동과 기타·모든 요일의 ID 및 선택 순�
   await submit(page);
   await assertPayload(page, {
     ...defaultPayload,
-    activities: ['union-worship', 'small-group', 'book-club', 'vibe-coding', 'futsal', 'career-mentoring', 'edu-volunteer', 'champs-study', 'happy-bridge', 'perfume-workshop', 'other'],
+    activities: ['union-worship', 'small-group', 'book-club', 'vibe-coding', 'futsal', 'champs-study', 'edu-volunteer', 'career-mentoring', 'happy-bridge', 'perfume-workshop', 'other'],
     activityOther: '보드게임', days: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
     participation: 'occasional', seekingFaithCommunity: true, comment: '향수공방은 언제 해요?', studentId: '00',
   });

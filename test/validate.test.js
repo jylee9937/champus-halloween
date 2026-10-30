@@ -4,6 +4,7 @@ import {
   emptyAnswers, toggleActivity, toggleDay, activitiesComplete, isValidStudentId, studentIdHasError,
   isValidPhone, phoneDigits, formatPhone, buildPayload, payloadErrors,
 } from '../src/lib/validate.js';
+import { ACTIVITIES, activityName } from '../src/survey/data.js';
 
 const filled = () => ({
   ...emptyAnswers(),
@@ -73,6 +74,19 @@ test('payload matches the data contract exactly', () => {
     phone: '01000000000',
     consent: true,
   });
+  assert.deepEqual(payloadErrors(p), []);
+});
+
+test('activities follow the booth order; champs-study keeps its id and shows as 스터디 모임', () => {
+  assert.deepEqual(ACTIVITIES.map(a => a.id), [
+    'union-worship', 'small-group', 'book-club', 'vibe-coding', 'futsal', 'champs-study',
+    'edu-volunteer', 'career-mentoring', 'happy-bridge', 'perfume-workshop', 'undecided', 'other',
+  ]);
+  assert.equal(activityName('champs-study'), '스터디 모임');
+  const emoji = id => ACTIVITIES.find(a => a.id === id).emoji;
+  assert.deepEqual(['champs-study', 'happy-bridge', 'edu-volunteer'].map(emoji), ['📝', '🌱', '✏️']);
+  const p = buildPayload({ ...filled(), activities: ['career-mentoring', 'edu-volunteer', 'champs-study', 'futsal'] });
+  assert.deepEqual(p.activities, ['futsal', 'champs-study', 'edu-volunteer', 'career-mentoring']);
   assert.deepEqual(payloadErrors(p), []);
 });
 

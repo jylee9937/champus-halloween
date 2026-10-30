@@ -12,7 +12,7 @@ let purged = 0;
 
 const gate = (title, body = '', actions = '') => `<section class="adm-gate">
   <div class="adm-card">
-    <div class="adm-logo" aria-hidden="true">🎃</div>
+    <div class="adm-logo" aria-hidden="true">🐑</div>
     <h1>${title}</h1>
     ${body ? `<p>${body}</p>` : ''}
     ${actions}
@@ -46,7 +46,7 @@ function renderData() {
   const dupes = rows.length - unique.length;
 
   view(`<header class="adm-top">
-      <h1>🎃 챔퍼스 설문 응답</h1>
+      <h1>🐑 챔퍼스 설문 응답</h1>
       <div class="adm-user">
         <span>${escapeHtml(user.email)}</span>
         <button class="adm-btn" data-action="refresh">새로고침</button>
