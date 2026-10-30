@@ -24,7 +24,7 @@ test.use({ mockOptions: { responses: seeds } });
 async function login(page) {
   await page.goto('/admin');
   await page.getByRole('button', { name: 'Google로 로그인' }).click();
-  await expect(page.getByRole('heading', { name: '🎃 챔퍼스 설문 응답' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '🐑 챔퍼스 설문 응답' })).toBeVisible();
 }
 
 const rows = page => page.getByRole('table').locator('tbody').getByRole('row');
@@ -34,6 +34,9 @@ test('SC-45 로그인 전에는 설문 데이터·관리자 조회·삭제 요�
   await expect(page.getByRole('heading', { name: '관리자 로그인' })).toBeVisible();
   await expect(page.getByRole('table')).toHaveCount(0);
   expect(await page.evaluate(() => window.__e2e.calls.map(c => c.op))).toEqual(['initializeApp', 'watchAuth']);
+  // Decorative lamb, not a pumpkin, on the admin gate and tab icon.
+  await expect(page.locator('.adm-logo')).toHaveText('🐑');
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', /🐑/);
 });
 
 test('SC-46 비관리자 접근 거절·데이터 미조회·로그아웃', async ({ page }) => {
@@ -68,7 +71,7 @@ test.describe('이미 로그인한 관리자', () => {
   test.use({ mockOptions: { responses: seeds, user: { email: 'admin@example.test' } } });
   test('SC-48 기존 로그인 상태에서 /admin 바로 열기', async ({ page }) => {
     await page.goto('/admin');
-    await expect(page.getByRole('heading', { name: '🎃 챔퍼스 설문 응답' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '🐑 챔퍼스 설문 응답' })).toBeVisible();
     await expect(rows(page)).toHaveCount(2);
     expect(await page.evaluate(() => window.__e2e.calls.some(c => c.op === 'signIn'))).toBe(false);
   });

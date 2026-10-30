@@ -36,6 +36,9 @@ async function finishLesson(page, correct = true) {
         6: '촛불을 켜고', 8: '1900년대',
       };
       await expect(page.getByRole('main')).toContainText(content[step]);
+      // 🎃 stays only where the lesson is about pumpkin culture; decorative icons elsewhere are a lamb.
+      if (step === 0) await expect(page.getByRole('main')).toContainText('유령? 사탕? 🎃');
+      if (step === 8) await expect(page.locator('.t-dot.orange')).toHaveText('🎃');
       await page.getByRole('button', { name: step === 0 ? '시작하기' : '다음', exact: true }).click();
     }
   }

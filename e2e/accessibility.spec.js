@@ -60,6 +60,9 @@ test('SC-40 활동 타일은 320·390px에서 2열이며 마지막 타일까지 
 test('SC-41 SC-42 언어·진행도·입력 레이블·입력 포커스·키보드 CTA', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('html')).toHaveAttribute('lang', 'ko');
+  // Decorative icons are a lamb; 🎃 stays only in the lesson's pumpkin-culture content (see SC-30).
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', /🐑/);
+  await expect(page.locator('link[rel="icon"]')).not.toHaveAttribute('href', /🎃/);
   await expect(page.getByRole('progressbar', { name: '진행도' })).toHaveAttribute('aria-valuemin', '0');
   await expect(page.getByRole('progressbar', { name: '진행도' })).toHaveAttribute('aria-valuemax', '100');
   await page.keyboard.press('Tab');
