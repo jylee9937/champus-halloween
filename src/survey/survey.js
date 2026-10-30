@@ -149,31 +149,17 @@ export function createSurvey({ shell, nav, onLesson }) {
       },
       cta: () => [a.comment.trim() ? '다음' : '건너뛰기'],
     },
-    {
-      id: 's5', progress: 50, count: 5,
-      html: () => `<div class="screen">
-        ${ask('이제 연락받을 정보만<br>남기면 끝이야!', pumpkin('happy'))}
-        <section class="privacy" aria-labelledby="privacyTitle">
-          <h2 id="privacyTitle">🔒 개인정보 수집·이용 안내</h2>
-          <dl>
-            <div><dt>수집 항목</dt><dd>이름, 학과, 학번, 연락처</dd></div>
-            <div><dt>이용 목적</dt><dd>관심 활동 안내와 일정 조율</dd></div>
-            <div><dt>보관 기간</dt><dd>수집 후 1년 (이후 삭제)</dd></div>
-          </dl>
-          <p>동의하지 않으면 활동 안내 연락을 받을 수 없어요.</p>
-        </section>
-      </div>`,
-      mount: () => { loadFirebase().catch(() => {}); },
-      leave: () => { a.consent = true; },
-      cta: () => ['동의하고 계속'],
-    },
+    // S5 (privacy notice + consent) was removed: S4 goes straight to S6. Analytics keeps s6=7 etc.
     {
       id: 's6', progress: 60, count: 6, focus: true,
       html: () => `<div class="screen">
         ${ask('이름이 뭐야?')}
         ${input(`id="nameInput" type="text" maxlength="${LIMITS.name}" placeholder="이름을 적어 줘" aria-label="이름" autocomplete="name" enterkeyhint="next"`)}
       </div>`,
-      mount: el => bindText(el.querySelector('#nameInput'), () => a.name, v => { a.name = v; }),
+      mount: el => {
+        loadFirebase().catch(() => {}); // warm the submit path before the contact screens
+        bindText(el.querySelector('#nameInput'), () => a.name, v => { a.name = v; });
+      },
       cta: () => (isValidName(a.name) ? ['다음'] : ['이름을 적어 줘!', true]),
     },
     {
@@ -388,7 +374,6 @@ export function createSurvey({ shell, nav, onLesson }) {
   function next() {
     const s = screens[i];
     if (sending || s.cta()[1]) return;
-    s.leave?.();
     if (s.id === 's9') return submit();
     if (s.id === 's10') return onLesson();
     go(i + 1);

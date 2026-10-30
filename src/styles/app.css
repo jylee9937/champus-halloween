@@ -208,14 +208,6 @@ body{overflow:hidden}
 textarea.input{min-height:150px;resize:none;display:block}
 .field-error{margin:0;font:800 17px/1.35 var(--display);color:var(--red-fg)}
 
-/* privacy notice (Figma: Privacy Card) */
-.privacy{width:100%;display:flex;flex-direction:column;gap:12px;text-align:left;background:var(--surface);border:2px solid var(--line);border-bottom-width:5px;border-radius:18px;padding:18px 20px 16px;font:800 17px/1.35 var(--display)}
-.privacy h2{margin:0;font:800 21px/1.2 var(--display)}
-.privacy dl{margin:0;display:flex;flex-direction:column;gap:12px}
-.privacy dl div{display:flex;gap:12px}
-.privacy dt{flex:none;width:76px;color:var(--muted)}
-.privacy dd{margin:0;flex:1;min-width:0}
-.privacy p{margin:0;font-size:16px;line-height:1.4;color:var(--muted)}
 
 /* reward coupon (Figma: Reward Coupon 47:90). Hot Choco is gold; Hot Choco + Cookie swaps in the green tokens and adds a ribbon. */
 .coupon{--coupon-line:var(--gold-line);--coupon-bg:var(--gold-bg);--coupon-fg:var(--gold-fg);

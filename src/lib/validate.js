@@ -38,7 +38,7 @@ export function formatPhone(d) {
 export function emptyAnswers() {
   return {
     activities: [], activityOther: '', days: [], participation: null, seekingFaithCommunity: null,
-    comment: '', consent: false, name: '', department: '', studentId: '', phone: '',
+    comment: '', name: '', department: '', studentId: '', phone: '',
   };
 }
 
@@ -76,11 +76,10 @@ export function buildPayload(a) {
     department: a.department.trim(),
     studentId: a.studentId,
     phone: phoneDigits(a.phone),
-    consent: a.consent,
   };
 }
 
-const PAYLOAD_KEYS = ['activities', 'activityOther', 'days', 'participation', 'seekingFaithCommunity', 'comment', 'name', 'department', 'studentId', 'phone', 'consent'];
+const PAYLOAD_KEYS = ['activities', 'activityOther', 'days', 'participation', 'seekingFaithCommunity', 'comment', 'name', 'department', 'studentId', 'phone'];
 
 // Returns the names of fields that break the contract (empty when the payload is good to send).
 export function payloadErrors(p) {
@@ -102,6 +101,5 @@ export function payloadErrors(p) {
   if (typeof p.department !== 'string' || !within(p.department, LIMITS.department)) bad.push('department');
   if (typeof p.studentId !== 'string' || !STUDENT_ID_RE.test(p.studentId)) bad.push('studentId');
   if (typeof p.phone !== 'string' || !PHONE_RE.test(p.phone)) bad.push('phone');
-  if (p.consent !== true) bad.push('consent');
   return bad;
 }

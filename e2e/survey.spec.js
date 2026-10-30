@@ -3,7 +3,7 @@ import {
   toDays, toComment, toName, toPhone, submit, assertPayload, defaultPayload, expectSurveyReward,
 } from './fixtures.js';
 
-test('SC-01 SC-12 설문 전체 진행도·개인정보 동의·정확한 Firestore 문서', async ({ page }) => {
+test('SC-01 설문 전체 진행도·S4에서 S6로 바로·정확한 Firestore 문서', async ({ page }) => {
   await page.goto('/');
   await progress(page, 0, 0);
   await layout(page);
@@ -26,14 +26,10 @@ test('SC-01 SC-12 설문 전체 진행도·개인정보 동의·정확한 Firest
   await next(page);
   await progress(page, 50, 5);
   await layout(page);
+  // S5 (privacy notice/consent) was removed: 궁금한 점 goes straight to 이름.
   await page.getByRole('button', { name: '건너뛰기' }).click();
-  await progress(page, 50, 5);
-  await layout(page);
-  await expect(page.getByRole('heading', { name: '🔒 개인정보 수집·이용 안내' })).toBeVisible();
-  await expect(page.getByText('수집 후 1년 (이후 삭제)', { exact: true })).toBeVisible();
-  await expect(page.getByText('이름, 학과, 학번, 연락처')).toBeVisible();
-  await expect(page.getByText('관심 활동 안내와 일정 조율')).toBeVisible();
-  await page.getByRole('button', { name: '동의하고 계속' }).click();
+  await expect(page.getByRole('button', { name: '동의하고 계속' })).toHaveCount(0);
+  await expect(page.getByText('개인정보 수집·이용 안내')).toHaveCount(0);
   for (const [label, value, pct, count] of [
     ['이름', '김챔퍼스', 60, 6], ['학과', '소프트웨어학과', 70, 7], ['학번', '20261234', 80, 8],
   ]) {
@@ -81,7 +77,6 @@ test('SC-02 모든 일반 활동과 기타·모든 요일의 ID 및 선택 순�
   await next(page);
   await comment(page).fill('  향수공방은 언제 해요?  ');
   await next(page);
-  await page.getByRole('button', { name: '동의하고 계속' }).click();
   for (const [label, value] of [['이름', ' 김챔퍼스 '], ['학과', ' 소프트웨어학과 '], ['학번', '00']]) {
     await page.getByRole('textbox', { name: label, exact: true }).fill(value);
     await next(page);
@@ -131,8 +126,8 @@ test('SC-05 기타 공백·필수·100자 제한 및 자동 포커스', async ({
 
 test('SC-06 기타 선택 해제 후 남은 글은 null, 고민 중 ID 저장', async ({ page }) => {
   await toPhone(page);
-  // Return through every prior screen, then remove other text through the actual S1 controls.
-  for (let i = 0; i < 9; i++) await back(page);
+  // Return through every prior screen (S9 → S1, eight steps without S5), then remove other text through the actual S1 controls.
+  for (let i = 0; i < 8; i++) await back(page);
   await activity(page, '기타').click();
   await page.getByRole('textbox', { name: '기타 활동' }).fill('보드게임');
   await activity(page, '아직 고민 중이에요').click();
@@ -143,7 +138,6 @@ test('SC-06 기타 선택 해제 후 남은 글은 null, 고민 중 ID 저장', 
   await next(page);
   await next(page);
   await page.getByRole('button', { name: '건너뛰기' }).click();
-  await page.getByRole('button', { name: '동의하고 계속' }).click();
   for (let i = 0; i < 3; i++) await next(page);
   await submit(page);
   await assertPayload(page, { ...defaultPayload, activities: ['undecided'], days: ['flexible'] });
@@ -187,7 +181,6 @@ test('SC-09 SC-10 참여 방식·신앙 공동체 필수 단일 선택, info-onl
   await expect(page.getByRole('radio', { name: /아니요/ })).toBeChecked();
   await next(page);
   await page.getByRole('button', { name: '건너뛰기' }).click();
-  await page.getByRole('button', { name: '동의하고 계속' }).click();
   for (const [label, value] of [['이름', '김챔퍼스'], ['학과', '소프트웨어학과'], ['학번', '20261234']]) {
     await page.getByRole('textbox', { name: label, exact: true }).fill(value);
     await next(page);
@@ -308,8 +301,7 @@ test('SC-22 이전 버튼·브라우저 뒤로 가기에서 모든 답변 유지
   await expect(page.getByRole('textbox', { name: '학과', exact: true })).toHaveValue('소프트웨어학과');
   await back(page);
   await expect(page.getByRole('textbox', { name: '이름', exact: true })).toHaveValue('김챔퍼스');
-  await back(page);
-  await back(page);
+  await back(page); // 이름 → 궁금한 점 directly (no S5)
   await comment(page).fill('뒤로 가도 유지');
   await back(page);
   await expect(page.getByRole('radio', { name: /아니요/ })).toBeChecked();
@@ -331,7 +323,6 @@ test('SC-22 이전 버튼·브라우저 뒤로 가기에서 모든 답변 유지
   await next(page);
   await expect(comment(page)).toHaveValue('뒤로 가도 유지');
   await next(page);
-  await page.getByRole('button', { name: '동의하고 계속' }).click();
   for (let i = 0; i < 3; i++) await next(page);
   await expect(page.getByRole('textbox', { name: '전화번호' })).toHaveValue('010-1234-5678');
 });
