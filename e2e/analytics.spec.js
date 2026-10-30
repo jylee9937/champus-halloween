@@ -1,4 +1,4 @@
-import { test, expect, activity, next, submit } from './fixtures.js';
+import { test, expect, activity, next, submit, savedCoupon, LESSON_CTA } from './fixtures.js';
 
 // Analytics is off in e2e mode unless a test opts in with mockOptions { analytics: true };
 // writes then go to the SDK mock (window.__e2e.sessionWrites / sessions), never to Firebase.
@@ -33,7 +33,7 @@ test.describe('분석 기록 켬', () => {
     await next(page);
     await surveyToPhone(page);
     await submit(page);
-    await page.getByRole('button', { name: '할로윈의 진짜 의미 알기 🎃' }).click();
+    await page.getByRole('button', { name: LESSON_CTA, exact: true }).click();
     await page.getByRole('button', { name: '시작하기' }).click();
 
     await expect.poll(() => page.evaluate(() => window.__e2e.sessions?.[0]?.lastScreen), { timeout: 5000 }).toBe('l2');
@@ -95,6 +95,37 @@ test.describe('분석 기록 켬', () => {
     expect(doc).toMatchObject({ startedAt: { __type: 'serverTimestamp' }, lastScreen: 's1', infoOpens: { futsal: 1 } });
     expect(doc.expireAt).toEqual(create.data.expireAt);
   });
+
+  test('SC-A5 S10 인스타·수업 시작·끝 화면 인스타·다시 보기를 기록', async ({ page }) => {
+    const correct = { 2: '10월 31일 밤', 7: '믿음의 선배들을 기억하며 기도했다', 9: '모든 성인의 날, 그 전날 밤' };
+    const openPopup = async click => {
+      const popup = page.waitForEvent('popup');
+      await click();
+      await (await popup).close();
+    };
+    await savedCoupon(page);
+    await openPopup(() => page.getByRole('link', { name: '📷 인스타그램 @champus_ajou' }).click());
+    await page.getByRole('button', { name: LESSON_CTA, exact: true }).click();
+    for (let step = 0; step < 10; step++) {
+      if (correct[step]) {
+        await page.getByRole('button', { name: new RegExp(correct[step] + '$') }).click();
+        await page.getByRole('button', { name: '계속', exact: true }).click();
+      } else {
+        await page.locator('footer').getByRole('button').first().click();
+      }
+    }
+    await openPopup(() => page.getByRole('button', { name: '챔퍼스 인스타 둘러보기 📷' }).click());
+    await page.getByRole('button', { name: '할로윈 이야기 다시 보기' }).click();
+    await expect(page.getByRole('heading', { name: /할로윈의.*진짜 뜻/ })).toBeVisible();
+
+    // Stats are absolute values, so the latest write carries the whole story.
+    await expect.poll(() => page.evaluate(() => window.__e2e.sessionWrites?.at(-1)?.data.lessonRestarts)).toBe(1);
+    const last = await page.evaluate(() => window.__e2e.sessionWrites.at(-1).data);
+    expect(last).toMatchObject({
+      lastScreen: 'l1', maxSurveyStep: 11, maxLessonStep: 11, lessonCompleted: true, lessonRestarts: 1,
+      instagramClicks: { done: 1, lessonEnd: 1 },
+    });
+  });
 });
 
 test('SC-A2 e2e 기본값은 분석 기록 끔: 문서·저장소 쓰기 없음', async ({ page }) => {
@@ -135,7 +166,7 @@ test.describe('관리자 분석 탭', () => {
 
   test('SC-A3 분석 탭: 지연 조회, 오늘/전체, 퍼널, ⓘ 표, 만료 방문 정리', async ({ page }) => {
     await page.goto('/admin');
-    await expect(page.getByRole('heading', { name: '🎃 챔퍼스 설문 응답' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '🐑 챔퍼스 설문 응답' })).toBeVisible();
     await expect(page.getByRole('status')).toHaveText('🧹 1년 지난 방문 기록 1개를 정리했어요');
     expect(await page.evaluate(() => window.__e2e.purgedSessionIds)).toEqual(['expired']);
     expect(await page.evaluate(() => window.__e2e.calls.some(c => c.op === 'fetchSessions'))).toBe(false);

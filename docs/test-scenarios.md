@@ -344,7 +344,11 @@
       - 같은 문서에 병합 갱신이 기록된다.
       - 마지막 갱신 payload는 lastScreen `s1`, maxSurveyStep 1, 그 활동의 infoOpens 1이다. 나머지는 0이고 updatedAt은 serverTimestamp다.
       - startedAt·expireAt은 생성 때 값이 그대로 남는다.
-- **SC-A5 실제 프로젝트 한 번 확인** — 수동.
+- **SC-A5 S10 인스타·수업·끝 화면 인스타·다시 보기 기록** — 자동, `analytics.spec.js`
+    - 사전 조건: `analytics: true`, 완료 marker로 S10 쿠폰에서 시작한다.
+    - 절차: S10 인스타 링크를 누른다. "할로윈 퀴즈 풀고 쿠키 받기 🍪"로 수업에 들어가 끝까지 푼 뒤, 끝 화면의 인스타 CTA와 "할로윈 이야기 다시 보기"를 차례로 누른다.
+    - 기대 결과: 마지막 갱신 payload는 lastScreen `l1`, maxLessonStep 11, lessonCompleted true, lessonRestarts 1, instagramClicks `{done: 1, lessonEnd: 1}`이다.
+- **SC-A6 실제 프로젝트 한 번 확인** — 수동.
     - 사전 조건: sessions 규칙이 배포되어 있다.
     - 절차: 배포된 사이트에서 390×844로 설문부터 수업까지 한 번 진행한다.
     - 기대 결과: Firestore에 sessions 문서가 정확히 하나 생기고 값이 진행과 맞는다.
