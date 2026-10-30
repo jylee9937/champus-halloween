@@ -10,7 +10,6 @@ async function surveyToPhone(page) {
   await page.getByRole('radio', { name: /아니요/ }).click();
   await next(page);
   await page.getByRole('button', { name: '건너뛰기' }).click();
-  await page.getByRole('button', { name: '동의하고 계속' }).click();
   await page.getByRole('textbox', { name: '이름', exact: true }).fill('김챔퍼스');
   await next(page);
   await page.getByRole('textbox', { name: '학과', exact: true }).fill('소프트웨어학과');
@@ -61,6 +60,8 @@ test.describe('분석 기록 켬', () => {
     expect(doc.infoOpens).toMatchObject({ futsal: 1, 'book-club': 1, 'union-worship': 0 });
     expect(Object.keys(doc.infoOpens)).toHaveLength(10);
     expect(doc.infoSelects).toMatchObject({ futsal: 1, 'book-club': 0 });
+    // The retired S5 is never recorded: S4 (5) goes straight to S6 (7).
+    expect(sessionWrites.some(w => w.data.lastScreen === 's5' || w.data.maxSurveyStep === 6)).toBe(false);
     // Debounced: far fewer writes than screens + clicks.
     expect(sessionWrites.length).toBeLessThan(20);
     // No personal data anywhere in analytics.
@@ -180,7 +181,8 @@ test.describe('관리자 분석 탭', () => {
     await expect(kpis.getByText('제출', { exact: true }).locator('..')).toContainText('2/3');
 
     const survey = page.getByRole('list', { name: '설문 퍼널' }).getByRole('listitem');
-    await expect(survey).toHaveCount(12);
+    await expect(survey).toHaveCount(11); // s0…s10 without the retired S5
+    await expect(survey.filter({ hasText: '개인정보' })).toHaveCount(0);
     await expect(survey.first()).toContainText('챔퍼스 소개');
     await expect(survey.first()).toContainText('100%');
     await expect(survey.filter({ hasText: '가장 큰 이탈' })).toHaveCount(1);

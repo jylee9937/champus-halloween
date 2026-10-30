@@ -2,8 +2,11 @@
 // No DOM and no Firebase here, so it runs under `node --test`; analytics.js wires the real I/O.
 import { ACTIVITIES } from '../survey/data.js';
 
-// Survey order for maxSurveyStep: s0=0 … s10=11.
+// Survey order for maxSurveyStep: s0=0 … s10=11. The indices are part of the sessions contract.
 export const SURVEY_STEPS = ['s0', 's1', 's2', 's3', 's3_1', 's4', 's5', 's6', 's7', 's8', 's9', 's10'];
+// S5 (privacy notice/consent) was removed from the survey. Its index stays so s6=7 … s10=11 keep their meaning,
+// but it is never recorded: S4 (5) goes straight to S6 (7).
+export const RETIRED_STEPS = new Set(['s5']);
 export const LESSON_STEPS = 11;
 // The 10 real activities (the ones with an ⓘ sheet).
 export const INFO_IDS = ACTIVITIES.filter(a => !a.exclusive && !a.needsText).map(a => a.id);
@@ -31,6 +34,7 @@ const bump = (map, key) => (key in map ? { ...map, [key]: map[key] + 1 } : map);
 export function applyEvent(s, e) {
   switch (e?.type) {
     case 'screen': {
+      if (RETIRED_STEPS.has(e.id)) return s;
       const survey = SURVEY_STEPS.indexOf(e.id);
       const lesson = lessonIndex(e.id);
       if (survey < 0 && !lesson) return s;
@@ -64,7 +68,8 @@ export function restoreState(saved) {
   if (!saved || typeof saved !== 'object' || !/^[A-Za-z0-9]{20}$/.test(saved.sid)) return null;
   const base = emptyStats(), v = saved.stats ?? {};
   const stats = {
-    lastScreen: SURVEY_STEPS.includes(v.lastScreen) || lessonIndex(v.lastScreen) ? v.lastScreen : base.lastScreen,
+    lastScreen: (SURVEY_STEPS.includes(v.lastScreen) && !RETIRED_STEPS.has(v.lastScreen)) || lessonIndex(v.lastScreen)
+      ? v.lastScreen : base.lastScreen,
     maxSurveyStep: isCount(v.maxSurveyStep) ? Math.min(v.maxSurveyStep, SURVEY_STEPS.length - 1) : 0,
     maxLessonStep: isCount(v.maxLessonStep) ? Math.min(v.maxLessonStep, LESSON_STEPS) : 0,
     lessonCompleted: v.lessonCompleted === true,
