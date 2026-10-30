@@ -2,6 +2,7 @@
 // Figma: survey flow 21:1370, states 21:1371, components 15:79.
 import { pumpkin, candle } from '../lib/characters.js';
 import { confetti, couponHtml, INSTAGRAM_URL } from '../lib/ui.js';
+import { track } from '../lib/analytics.js';
 import { ACTIVITIES, DAYS, FLEXIBLE, PARTICIPATION } from './data.js';
 import {
   LIMITS, emptyAnswers, toggleActivity, toggleDay, activitiesComplete, isValidName, isValidDepartment,
@@ -231,7 +232,10 @@ export function createSurvey({ shell, nav, onLesson }) {
         <a class="ig-link" href="${INSTAGRAM_URL}" target="_blank" rel="noopener">📷 인스타그램 @champus_ajou</a>
       </div>`,
       extras: { chip: '퀴즈 3개 · 3분', sub: '할로윈의 진짜 의미, 3분 퀴즈로 알아보자!' },
-      mount: el => confetti(el.querySelector('.confetti')),
+      mount: el => {
+        confetti(el.querySelector('.confetti'));
+        el.querySelector('.ig-link').addEventListener('click', () => track.instagram('done'));
+      },
       cta: () => ['할로윈 퀴즈 풀고 쿠키 받기 🍪'],
     },
   ];
@@ -297,6 +301,7 @@ export function createSurvey({ shell, nav, onLesson }) {
     const act = ACTIVITIES.find(x => x.id === id);
     const picked = a.activities.includes(id);
     sheetOpener = opener;
+    track.infoOpen(id);
     sheetRoot.innerHTML = `<div class="sheet-dim"></div>
       <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetName">
         <div class="sheet-grab" aria-hidden="true"></div>
@@ -319,6 +324,7 @@ export function createSurvey({ shell, nav, onLesson }) {
     sheetRoot.querySelector('.sheet-actions').addEventListener('click', e => {
       const what = e.target.closest('[data-act]')?.dataset.act;
       if (!what) return;
+      if (what === 'pick') track.infoSelect(id);
       if (what !== 'close') setActivity(id, what === 'pick');
       closeSheet();
     });
@@ -351,6 +357,7 @@ export function createSurvey({ shell, nav, onLesson }) {
     closeSheet();
     shell.hideBanner();
     screenEl = shell.show(s.html(), dir);
+    track.screen(s.id.replace('-', '_'));
     shell.progress(s.progress);
     shell.pill(`📝 ${s.count}/${QUESTIONS}`, `설문 ${QUESTIONS}문항 중 ${s.count}번째`);
     shell.extras(s.extras);
@@ -385,10 +392,12 @@ export function createSurvey({ shell, nav, onLesson }) {
     sending = true;
     shell.hideBanner();
     refresh();
+    track.submitAttempt();
     try {
       const { submitResponse } = await loadFirebase();
       const id = await submitResponse(buildPayload(a));
       if (import.meta.env.DEV) console.info('[survey] saved response', id);
+      track.submitted();
       // Keep only the name (for the coupon); everything else leaves memory.
       doneName = a.name.trim();
       a = emptyAnswers();
@@ -397,6 +406,7 @@ export function createSurvey({ shell, nav, onLesson }) {
       go(indexOf('s10'));
     } catch (err) {
       console.error('[survey] submit failed', err);
+      track.submitFailure();
       sending = false;
       refresh();
       shell.showBanner({ ok: false, title: '전송이 안 됐어요', sub: '인터넷 연결을 확인하고 다시 보내 줘', button: '다시 보내기' });
