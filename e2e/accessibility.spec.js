@@ -40,16 +40,16 @@ test('SC-39 시스템 다크 모드가 설문·수업·관리자에 적용', asy
   await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(255, 251, 242)');
 });
 
-test('SC-40 활동 타일은 320·390px에서 2열이며 마지막 타일까지 접근', async ({ page }) => {
+test('SC-40 활동 카드는 320·390px에서 한 열이며 마지막 카드까지 접근', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: '설문 시작하기' }).click();
   const a = await activity(page, '캠퍼스 연합예배').boundingBox();
   const b = await activity(page, '소그룹 예배').boundingBox();
-  const c = await activity(page, '독서모임').boundingBox();
-  expect(a.y).toBe(b.y);
-  expect(b.x).toBeGreaterThan(a.x + a.width);
-  expect(c.x).toBe(a.x);
-  expect(c.y).toBeGreaterThan(a.y + a.height);
+  const main = await page.getByRole('main').boundingBox();
+  expect(b.x).toBe(a.x);
+  expect(b.width).toBe(a.width);
+  expect(b.y).toBeGreaterThan(a.y + a.height);
+  expect(a.width).toBeGreaterThan(main.width - 20);
   await activity(page, '기타').scrollIntoViewIfNeeded();
   await expect(activity(page, '기타')).toBeInViewport();
   await activity(page, '기타').click();

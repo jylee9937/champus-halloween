@@ -24,10 +24,7 @@ test.describe('분석 기록 켬', () => {
   test('SC-A1 방문 한 번은 sessions 문서 하나를 만들고 같은 문서를 갱신', async ({ page }) => {
     await page.goto('/');
     await page.getByRole('button', { name: '설문 시작하기' }).click();
-    await page.getByRole('button', { name: '풋살 모임 소개 보기', exact: true }).click();
-    await page.getByRole('dialog', { name: '풋살 모임' }).getByRole('button', { name: '이 활동 고르기' }).click();
-    await page.getByRole('button', { name: '독서모임 소개 보기', exact: true }).click();
-    await page.getByRole('dialog', { name: '독서모임' }).getByRole('button', { name: '닫기', exact: true }).click();
+    await activity(page, '풋살 모임').click();
     await expect(activity(page, '풋살 모임')).toHaveAttribute('aria-pressed', 'true');
     await next(page);
     await surveyToPhone(page);
@@ -57,9 +54,9 @@ test.describe('분석 기록 켬', () => {
       lessonRestarts: 0, submitAttempts: 1, submitFailures: 0, submitted: true,
       instagramClicks: { done: 0, lessonEnd: 0 },
     });
-    expect(doc.infoOpens).toMatchObject({ futsal: 1, 'book-club': 1, 'union-worship': 0 });
-    expect(Object.keys(doc.infoOpens)).toHaveLength(10);
-    expect(doc.infoSelects).toMatchObject({ futsal: 1, 'book-club': 0 });
+    // S1 shows details inline now (no ⓘ sheet): the contract's ⓘ maps stay all zeros.
+    expect(doc.infoOpens).toEqual(zeros(INFO));
+    expect(doc.infoSelects).toEqual(zeros(INFO));
     // The retired S5 is never recorded: S4 (5) goes straight to S6 (7).
     expect(sessionWrites.some(w => w.data.lastScreen === 's5' || w.data.maxSurveyStep === 6)).toBe(false);
     // Debounced: far fewer writes than screens + clicks.
@@ -71,29 +68,29 @@ test.describe('분석 기록 켬', () => {
     for (const secret of ['김챔퍼스', '20261234', '01012345678']) expect(stored).not.toContain(secret);
   });
 
-  test('SC-A4 화면 이동과 ⓘ 열기는 병합 갱신 하나로 기록', async ({ page }) => {
+  test('SC-A4 화면 이동은 병합 갱신으로 기록하고 ⓘ 지도는 0 그대로', async ({ page }) => {
     await page.goto('/');
     // S0 view → the create write.
     await expect.poll(() => page.evaluate(() => window.__e2e.sessionWrites?.length ?? 0)).toBe(1);
     await page.getByRole('button', { name: '설문 시작하기' }).click();
-    await page.getByRole('button', { name: '풋살 모임 소개 보기', exact: true }).click();
-    await expect(page.getByRole('dialog', { name: '풋살 모임' })).toBeVisible();
-    // The S1 view and the ⓘ open go out as merges (normally one, debounced; a slow runner may split them).
-    await expect.poll(() => page.evaluate(() => window.__e2e.sessionWrites.at(-1).data.infoOpens.futsal)).toBe(1);
+    await activity(page, '풋살 모임').click();
+    await next(page);
+    // S1 and S2 go out as merges (normally one, debounced; a slow runner may split them).
+    await expect.poll(() => page.evaluate(() => window.__e2e.sessionWrites.at(-1).data.lastScreen)).toBe('s2');
     const writes = await page.evaluate(() => window.__e2e.sessionWrites);
     const [create] = writes, update = writes.at(-1);
     expect(writes.length).toBeLessThanOrEqual(3);
     expect(writes.slice(1).every(w => w.id === create.id && w.merge)).toBe(true);
     const zeros = Object.fromEntries(INFO.map(id => [id, 0]));
     expect(update.data).toEqual({
-      schemaVersion: 1, lastScreen: 's1', maxSurveyStep: 1, maxLessonStep: 0, lessonCompleted: false,
+      schemaVersion: 1, lastScreen: 's2', maxSurveyStep: 2, maxLessonStep: 0, lessonCompleted: false,
       lessonRestarts: 0, submitAttempts: 0, submitFailures: 0, submitted: false,
-      infoOpens: { ...zeros, futsal: 1 }, infoSelects: zeros, instagramClicks: { done: 0, lessonEnd: 0 },
+      infoOpens: zeros, infoSelects: zeros, instagramClicks: { done: 0, lessonEnd: 0 },
       updatedAt: { __type: 'serverTimestamp' },
     });
     // The merged doc keeps the create-only fields.
     const [doc] = await page.evaluate(() => window.__e2e.sessions);
-    expect(doc).toMatchObject({ startedAt: { __type: 'serverTimestamp' }, lastScreen: 's1', infoOpens: { futsal: 1 } });
+    expect(doc).toMatchObject({ startedAt: { __type: 'serverTimestamp' }, lastScreen: 's2', infoOpens: zeros });
     expect(doc.expireAt).toEqual(create.data.expireAt);
   });
 
@@ -132,8 +129,8 @@ test.describe('분석 기록 켬', () => {
 test('SC-A2 e2e 기본값은 분석 기록 끔: 문서·저장소 쓰기 없음', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: '설문 시작하기' }).click();
-  await page.getByRole('button', { name: '풋살 모임 소개 보기', exact: true }).click();
-  await expect(page.getByRole('dialog', { name: '풋살 모임' })).toBeVisible();
+  await activity(page, '풋살 모임').click();
+  await expect(activity(page, '풋살 모임')).toHaveAttribute('aria-pressed', 'true');
   // With analytics on, the first screen view persists its state synchronously, so absence here is conclusive.
   expect(await page.evaluate(() => window.__storageWrites.filter(w => w.key === 'champus:analytics'))).toEqual([]);
   expect(await page.evaluate(() => window.__e2e.sessionWrites ?? [])).toEqual([]);
@@ -151,9 +148,20 @@ const session = (id, over = {}) => ({
   infoOpens: { ...zeros(INFO), ...over.infoOpens }, infoSelects: { ...zeros(INFO), ...over.infoSelects },
 });
 
+const response = (id, phone, activities) => ({
+  id, schemaVersion: 1, activities, activityOther: null, days: [], participation: 'regular', seekingFaithCommunity: false,
+  comment: '', name: '이름' + id, department: '학과', studentId: '20261234', phone,
+  createdAt: today, expireAt: '2027-10-31T01:00:00Z',
+});
+
 test.describe('관리자 분석 탭', () => {
   test.use({ mockOptions: {
     user: { email: 'admin@example.test' },
+    responses: [
+      response('r1', '01011110000', ['futsal']),
+      response('r2', '01022220000', ['futsal', 'book-club']),
+      response('r3', '01033330000', ['undecided']),
+    ],
     sessions: [
       session('a', { maxSurveyStep: 0 }),
       session('b', { maxSurveyStep: 1, infoOpens: { futsal: 2 } }),
@@ -165,7 +173,7 @@ test.describe('관리자 분석 탭', () => {
     ],
   } });
 
-  test('SC-A3 분석 탭: 지연 조회, 오늘/전체, 퍼널, ⓘ 표, 만료 방문 정리', async ({ page }) => {
+  test('SC-A3 분석 탭: 지연 조회, 오늘/전체, 퍼널, 활동별 선택, 이전 ⓘ 기록, 만료 방문 정리', async ({ page }) => {
     await page.goto('/admin');
     await expect(page.getByRole('heading', { name: '🐑 챔퍼스 설문 응답' })).toBeVisible();
     await expect(page.getByRole('status')).toHaveText('🧹 1년 지난 방문 기록 1개를 정리했어요');
@@ -188,10 +196,22 @@ test.describe('관리자 분석 탭', () => {
     await expect(survey.filter({ hasText: '가장 큰 이탈' })).toHaveCount(1);
     await expect(page.getByRole('list', { name: '레슨 퍼널' }).getByRole('listitem')).toHaveCount(12);
 
-    const info = page.getByRole('region', { name: '활동 소개(ⓘ) 열람' }).getByRole('row');
-    await expect(info).toHaveCount(11);
-    await expect(info.nth(1)).toContainText('풋살 모임');
-    await expect(info.nth(1)).toContainText('50%');
+    // 활동별 선택: picks from deduped responses, share of respondents (3), most picked first.
+    const picks = page.getByRole('region', { name: '활동별 선택' }).getByRole('row');
+    await expect(picks).toHaveCount(13);
+    await expect(picks.nth(1)).toContainText('풋살 모임');
+    await expect(picks.nth(1)).toContainText('2');
+    await expect(picks.nth(1)).toContainText('67%');
+    await expect(page.getByRole('region', { name: '활동별 선택' })).toContainText('응답자 3명');
+
+    // Old ⓘ numbers exist in these sessions, so they sit collapsed under 이전 ⓘ 기록.
+    const legacy = page.getByRole('region', { name: '이전 ⓘ 기록' });
+    await expect(legacy).toBeHidden();
+    await page.locator('summary').filter({ hasText: '이전 ⓘ 기록' }).click();
+    await expect(legacy).toBeVisible();
+    await expect(legacy.getByRole('row')).toHaveCount(11);
+    await expect(legacy.getByRole('row').nth(1)).toContainText('풋살 모임');
+    await expect(legacy.getByRole('row').nth(1)).toContainText('50%');
 
     await page.getByRole('button', { name: '전체', exact: true }).click();
     await expect(page.getByRole('button', { name: '전체', exact: true })).toHaveAttribute('aria-pressed', 'true');
