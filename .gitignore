@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.omc/
+.playwright-mcp/
+.DS_Store
+*.log
+.env*
