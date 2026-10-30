@@ -4,7 +4,7 @@ on:
   push:
     branches: [test/e2e]
   pull_request:
-    branches: [feat/booth-site]
+    branches: [main]
 
 permissions:
   contents: read
