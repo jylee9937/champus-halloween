@@ -207,8 +207,12 @@ test.describe('관리자 분석 탭', () => {
     // Old ⓘ numbers exist in these sessions, so they sit collapsed under 이전 ⓘ 기록.
     const legacy = page.getByRole('region', { name: '이전 ⓘ 기록' });
     await expect(legacy).toBeHidden();
+    // Wide tables scroll inside their cards; the page itself never scrolls sideways (320px included).
+    const noSideways = () => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
+    expect(await noSideways()).toBe(true);
     await page.locator('summary').filter({ hasText: '이전 ⓘ 기록' }).click();
     await expect(legacy).toBeVisible();
+    expect(await noSideways()).toBe(true);
     await expect(legacy.getByRole('row')).toHaveCount(11);
     await expect(legacy.getByRole('row').nth(1)).toContainText('풋살 모임');
     await expect(legacy.getByRole('row').nth(1)).toContainText('50%');
