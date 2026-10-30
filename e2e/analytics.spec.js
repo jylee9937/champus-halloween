@@ -43,8 +43,9 @@ test.describe('분석 기록 켬', () => {
     expect(doc.id).toMatch(/^[A-Za-z0-9]{20}$/);
     expect(new Set(sessionWrites.map(w => w.id))).toEqual(new Set([doc.id]));
     expect(sessionWrites.map(w => w.merge)).toEqual([false, ...sessionWrites.slice(1).map(() => true)]);
-    // Create carries every field; updates never touch startedAt/expireAt.
-    expect(Object.keys(sessionWrites[0].data)).toHaveLength(16);
+    // Create carries all 15 fields (the sid is the doc ID); updates never touch startedAt/expireAt.
+    expect(Object.keys(sessionWrites[0].data)).toHaveLength(15);
+    expect(sessionWrites[0].data).not.toHaveProperty('sid');
     expect(sessionWrites[0].data.startedAt).toEqual({ __type: 'serverTimestamp' });
     expect(sessionWrites[0].data.expireAt).toEqual({ ms: sessionWrites[0].at + 365 * 24 * 60 * 60 * 1000 });
     for (const w of sessionWrites.slice(1)) {
@@ -53,7 +54,7 @@ test.describe('분석 기록 켬', () => {
       expect(w.data.updatedAt).toEqual({ __type: 'serverTimestamp' });
     }
     expect(doc).toMatchObject({
-      sid: doc.id, schemaVersion: 1, lastScreen: 'l2', maxSurveyStep: 11, maxLessonStep: 2, lessonCompleted: false,
+      schemaVersion: 1, lastScreen: 'l2', maxSurveyStep: 11, maxLessonStep: 2, lessonCompleted: false,
       lessonRestarts: 0, submitAttempts: 1, submitFailures: 0, submitted: true,
       instagramClicks: { done: 0, lessonEnd: 0 },
     });
@@ -67,6 +68,32 @@ test.describe('분석 기록 켬', () => {
     for (const secret of ['김챔퍼스', '소프트웨어학과', '20261234', '01012345678']) expect(blob).not.toContain(secret);
     const stored = await page.evaluate(() => sessionStorage.getItem('champus:analytics'));
     for (const secret of ['김챔퍼스', '20261234', '01012345678']) expect(stored).not.toContain(secret);
+  });
+
+  test('SC-A4 화면 이동과 ⓘ 열기는 병합 갱신 하나로 기록', async ({ page }) => {
+    await page.goto('/');
+    // S0 view → the create write.
+    await expect.poll(() => page.evaluate(() => window.__e2e.sessionWrites?.length ?? 0)).toBe(1);
+    await page.getByRole('button', { name: '설문 시작하기' }).click();
+    await page.getByRole('button', { name: '풋살 모임 소개 보기', exact: true }).click();
+    await expect(page.getByRole('dialog', { name: '풋살 모임' })).toBeVisible();
+    // The S1 view and the ⓘ open go out as merges (normally one, debounced; a slow runner may split them).
+    await expect.poll(() => page.evaluate(() => window.__e2e.sessionWrites.at(-1).data.infoOpens.futsal)).toBe(1);
+    const writes = await page.evaluate(() => window.__e2e.sessionWrites);
+    const [create] = writes, update = writes.at(-1);
+    expect(writes.length).toBeLessThanOrEqual(3);
+    expect(writes.slice(1).every(w => w.id === create.id && w.merge)).toBe(true);
+    const zeros = Object.fromEntries(INFO.map(id => [id, 0]));
+    expect(update.data).toEqual({
+      schemaVersion: 1, lastScreen: 's1', maxSurveyStep: 1, maxLessonStep: 0, lessonCompleted: false,
+      lessonRestarts: 0, submitAttempts: 0, submitFailures: 0, submitted: false,
+      infoOpens: { ...zeros, futsal: 1 }, infoSelects: zeros, instagramClicks: { done: 0, lessonEnd: 0 },
+      updatedAt: { __type: 'serverTimestamp' },
+    });
+    // The merged doc keeps the create-only fields.
+    const [doc] = await page.evaluate(() => window.__e2e.sessions);
+    expect(doc).toMatchObject({ startedAt: { __type: 'serverTimestamp' }, lastScreen: 's1', infoOpens: { futsal: 1 } });
+    expect(doc.expireAt).toEqual(create.data.expireAt);
   });
 });
 

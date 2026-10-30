@@ -79,6 +79,19 @@ export function restoreState(saved) {
   return { sid: saved.sid, created: saved.created === true, stats };
 }
 
+const RETENTION_MS = 365 * 24 * 60 * 60 * 1000;
+
+/**
+ * The Firestore document for sessions/{sid} (the sid is the doc ID, not a field), matching firestore.rules:
+ * create = all 15 fields; update = the same minus startedAt/expireAt, sent with merge.
+ * The SDK sentinels are passed in so the rules tests can build the exact same payload against the emulator.
+ */
+export function sessionDoc(stats, { create, now, serverTimestamp, timestampFromMillis }) {
+  const data = { schemaVersion: 1, ...stats, updatedAt: serverTimestamp() };
+  if (!create) return data;
+  return { ...data, startedAt: serverTimestamp(), expireAt: timestampFromMillis(now + RETENTION_MS) };
+}
+
 const SID_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 /** 20 random [A-Za-z0-9] characters (rejection sampling keeps them uniform). */
 export function newSid(random = n => crypto.getRandomValues(new Uint8Array(n))) {

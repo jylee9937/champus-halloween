@@ -82,20 +82,20 @@ test('a failed sessions purge is logged and never hides the responses result', a
   err.mock.restore();
 });
 
-test('writeSession create: one full doc with server timestamps and a 365-day expireAt', async () => {
+test('writeSession create: the 15 fields firestore.rules allows, server timestamps, 365-day expireAt', async () => {
   const stats = emptyStats();
   const before = Date.now();
   await writeSession('S'.repeat(20), stats, { create: true });
   const { ref, data, options } = calls.setDocs[0];
-  assert.deepEqual(ref, { path: 'sessions', id: 'S'.repeat(20) });
+  assert.deepEqual(ref, { path: 'sessions', id: 'S'.repeat(20) }, 'the sid is the doc ID');
   assert.equal(options, undefined, 'create is a plain set, not a merge');
+  // Same list as validSessionCreate in firestore.rules (hasOnly + hasAll).
   assert.deepEqual(Object.keys(data).sort(), [
     'expireAt', 'infoOpens', 'infoSelects', 'instagramClicks', 'lastScreen', 'lessonCompleted', 'lessonRestarts',
-    'maxLessonStep', 'maxSurveyStep', 'schemaVersion', 'sid', 'startedAt', 'submitAttempts', 'submitFailures',
+    'maxLessonStep', 'maxSurveyStep', 'schemaVersion', 'startedAt', 'submitAttempts', 'submitFailures',
     'submitted', 'updatedAt',
   ]);
   assert.equal(data.schemaVersion, 1);
-  assert.equal(data.sid, 'S'.repeat(20));
   assert.equal(data.startedAt, SERVER_TS);
   assert.equal(data.updatedAt, SERVER_TS);
   const days = (data.expireAt.ms - before) / 86_400_000;
@@ -109,5 +109,9 @@ test('writeSession update: merge without startedAt/expireAt, fresh updatedAt', a
   assert.equal('startedAt' in data, false);
   assert.equal('expireAt' in data, false);
   assert.equal(data.updatedAt, SERVER_TS);
-  assert.equal(Object.keys(data).length, 14);
+  // Every key is in the rules' changeable list or unchanged (schemaVersion), so no key is ever added.
+  assert.deepEqual(Object.keys(data).sort(), [
+    'infoOpens', 'infoSelects', 'instagramClicks', 'lastScreen', 'lessonCompleted', 'lessonRestarts',
+    'maxLessonStep', 'maxSurveyStep', 'schemaVersion', 'submitAttempts', 'submitFailures', 'submitted', 'updatedAt',
+  ]);
 });

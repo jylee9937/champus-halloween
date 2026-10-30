@@ -6,6 +6,7 @@ import {
 } from 'firebase/firestore';
 import { firebaseConfig } from './firebase-config.js';
 import { payloadErrors } from './validate.js';
+import { sessionDoc } from './tracker.js';
 
 export class NotConfiguredError extends Error {
   constructor() {
@@ -53,14 +54,13 @@ export async function submitResponse(payload) {
 }
 
 /**
- * Writes this tab's anonymous analytics doc. The first write creates it with every field; later writes merge
- * everything except startedAt/expireAt, which rules keep fixed. `stats` comes from tracker.js (absolute values).
+ * Writes this tab's anonymous analytics doc. The first write creates it (plain set); later writes merge.
+ * `stats` comes from tracker.js (absolute values that never decrease); sessionDoc() shapes it for the rules.
  */
 export async function writeSession(sid, stats, { create }) {
   const ref = doc(db(), 'sessions', sid);
-  const data = { sid, schemaVersion: 1, ...stats, updatedAt: serverTimestamp() };
-  if (!create) return setDoc(ref, data, { merge: true });
-  return setDoc(ref, { ...data, startedAt: serverTimestamp(), expireAt: Timestamp.fromMillis(Date.now() + RETENTION_MS) });
+  const data = sessionDoc(stats, { create, now: Date.now(), serverTimestamp, timestampFromMillis: Timestamp.fromMillis });
+  return create ? setDoc(ref, data) : setDoc(ref, data, { merge: true });
 }
 
 async function auth() {
