@@ -21,6 +21,19 @@ test('screen views raise the maxes and never lower them', () => {
   assert.equal(s.lastScreen, 'l1');
 });
 
+test('the retired S5 is never recorded; S4 → S6 keeps the contract indices (s4=5, s6=7)', () => {
+  let s = screens(emptyStats(), 's1', 's2', 's3', 's3_1', 's4');
+  assert.equal(s.maxSurveyStep, 5);
+  assert.equal(applyEvent(s, { type: 'screen', id: 's5' }), s);
+  s = screens(s, 's6');
+  assert.equal(s.maxSurveyStep, 7);
+  assert.equal(s.lastScreen, 's6');
+  // A tab restored from a snapshot taken on the old S5 never sends 's5' again.
+  const r = restoreState({ sid: 'A'.repeat(20), created: true, stats: { ...emptyStats(), lastScreen: 's5', maxSurveyStep: 6 } });
+  assert.equal(r.stats.lastScreen, 's0');
+  assert.equal(r.stats.maxSurveyStep, 6);
+});
+
 test('unknown screens, activities and spots are ignored', () => {
   const s = emptyStats();
   assert.equal(applyEvent(s, { type: 'screen', id: 's3-1' }), s);
@@ -202,7 +215,7 @@ test('permission-denied flips create↔update for the next attempt', async () =>
 test('state persists, so a reload continues the same session without lowering anything', async () => {
   const first = setup();
   first.tracker.record({ type: 'screen', id: 's0' });
-  first.tracker.record({ type: 'screen', id: 's5' });
+  first.tracker.record({ type: 'screen', id: 's6' });
   first.tracker.record({ type: 'infoOpen', id: 'futsal' });
   await first.timers.advance(800);
   const saved = first.store.value;
@@ -214,7 +227,7 @@ test('state persists, so a reload continues the same session without lowering an
   await second.timers.advance(800);
   assert.equal(second.writes.length, 1);
   assert.equal(second.writes[0].create, false);
-  assert.equal(second.writes[0].stats.maxSurveyStep, 6);
+  assert.equal(second.writes[0].stats.maxSurveyStep, 7);
   assert.equal(second.writes[0].stats.infoOpens.futsal, 1);
   assert.equal(second.writes[0].stats.lastScreen, 's0');
 });
