@@ -62,9 +62,70 @@ body{font:500 15px/1.5 "Noto Sans KR",sans-serif}
 .adm-empty{text-align:center;color:var(--muted);padding:40px!important}
 .adm-badge{display:inline-block;margin-left:4px;padding:0 6px;border-radius:999px;background:var(--orange-bg);color:var(--fg);font-size:12px;font-weight:700}
 
+/* tabs */
+.adm-tabs{display:flex;gap:4px;border-bottom:2px solid var(--line);margin-bottom:16px}
+.adm-tab{min-height:44px;padding:0 18px;margin-bottom:-2px;border:0;border-bottom:3px solid transparent;background:transparent;color:var(--muted);font:800 18px var(--display);cursor:pointer}
+.adm-tab:hover{color:var(--fg)}
+.adm-tab[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--green)}
+.adm-tab:focus-visible{outline:3px solid var(--blue);outline-offset:-3px;border-radius:8px}
+.adm-panel{transition:opacity .2s}
+.adm-panel.is-refreshing{opacity:.5}
+
+/* analytics — one series per chart, so one bar hue (validated against both surfaces) and no legend */
+:root{--chart:#1899D6}
+.an-filter{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.an-seg{min-height:36px;padding:0 16px;border:2px solid var(--line);border-radius:999px;background:var(--surface);color:var(--fg);font:800 15px var(--display);cursor:pointer}
+.an-seg[aria-pressed="true"]{background:var(--blue-bg);border-color:var(--blue-line);color:var(--blue-fg)}
+.an-seg:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.an-range-note{margin-left:6px;color:var(--muted);font-size:13px}
+.an-kpis{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.an-kpis .adm-stat b{font-size:34px}
+.an-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.an-card{min-width:0;background:var(--surface);border:2px solid var(--line);border-bottom-width:5px;border-radius:18px;padding:16px 18px}
+.an-card.wide{grid-column:1/-1}
+.an-card h2{margin:0;font:800 20px/1.3 var(--display)}
+.an-card header p{margin:2px 0 12px;color:var(--muted);font-size:13px}
+.an-empty{margin:0;padding:24px 8px;text-align:center;color:var(--muted)}
+.an-empty .adm-btn{margin-left:8px}
+
+.fn{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.fn-row{display:grid;grid-template-columns:minmax(7em,9em) minmax(60px,1fr) 3em 3.2em 8.5em;align-items:center;gap:10px;padding:5px 8px;border-radius:8px;font-size:14px}
+.fn-row:hover{background:var(--bg)}
+.fn-row:focus-visible{outline:2px solid var(--blue);outline-offset:0;background:var(--bg)}
+.fn-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fn-track{display:flex;height:14px}
+.fn-bar{display:block;height:100%;background:var(--chart);border-radius:0 4px 4px 0}
+.fn-count{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.fn-pct{text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+.fn-drop{justify-self:start;color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.fn-drop.worst{padding:1px 8px;border-radius:999px;background:var(--orange-bg);color:var(--fg);font-weight:700}
+
+.an-table-wrap{overflow-x:auto}
+.an-table{width:100%;border-collapse:collapse;font-size:14px}
+.an-table th,.an-table td{padding:8px 10px;border-top:1px solid var(--line);text-align:left;white-space:nowrap}
+.an-table thead th{border-top:0;background:var(--track);font-weight:700}
+.an-table thead th:first-child{border-radius:8px 0 0 8px}
+.an-table thead th:last-child{border-radius:0 8px 8px 0}
+.an-table tbody th{font-weight:700}
+.an-table td[data-tip]:focus-visible{outline:2px solid var(--blue);outline-offset:-2px}
+.an-opens{display:flex;align-items:center;gap:8px;min-width:170px}
+.an-bar-track{flex:1;display:flex;height:12px}
+.an-table .an-num,.an-table th.num{text-align:right;font-variant-numeric:tabular-nums}
+.an-opens .an-num{min-width:2.5em}
+
+.an-tip{position:fixed;z-index:10;max-width:260px;padding:8px 10px;border-radius:10px;background:var(--fg);color:var(--bg);font-size:13px;line-height:1.45;white-space:pre-line;pointer-events:none;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+.an-tip::first-line{font-weight:700}
+
 @media (max-width:760px){
   .admin{padding:16px}
   .adm-stats{grid-template-columns:1fr 1fr}
   .adm-stat.wide{grid-column:1/-1}
   .adm-controls{flex-wrap:wrap}
+  .an-grid{grid-template-columns:minmax(0,1fr)}
+  .fn-row{grid-template-columns:minmax(0,1fr) auto auto auto;grid-template-areas:"label drop count pct" "bar bar bar bar";gap:4px 8px;padding:6px 8px}
+  .fn-label{grid-area:label}
+  .fn-track{grid-area:bar;height:12px}
+  .fn-count{grid-area:count}
+  .fn-pct{grid-area:pct;min-width:3.2em}
+  .fn-drop{grid-area:drop;justify-self:end}
 }

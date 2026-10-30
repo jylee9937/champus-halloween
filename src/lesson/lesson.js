@@ -4,6 +4,7 @@
 // back on screen 1 leaves the lesson, and nothing about quiz results is stored.
 import { pumpkin, candle } from '../lib/characters.js';
 import { confetti, couponHtml, INSTAGRAM_URL } from '../lib/ui.js';
+import { track } from '../lib/analytics.js';
 
 export function createLesson({ shell, nav, getName, onExit }) {
   let step = 0, score = 0, answered = {};
@@ -112,6 +113,7 @@ export function createLesson({ shell, nav, getName, onExit }) {
     const s=screens[step];
     shell.hideBanner();
     const screen=shell.show(s.quiz?quizHtml(s.quiz):s.html(),dir);
+    track.screen('l'+(step+1));
     shell.progress(s.end?100:Math.round(step/(screens.length-1)*100));
     shell.back(true);
     shell.extras({link:s.link});
@@ -144,7 +146,7 @@ export function createLesson({ shell, nav, getName, onExit }) {
 
   function next(){
     const s=screens[step];
-    if(s.end){ window.open(INSTAGRAM_URL,'_blank','noopener'); return; }
+    if(s.end){ track.instagram('lessonEnd'); window.open(INSTAGRAM_URL,'_blank','noopener'); return; }
     if(shell.nextBtn.disabled) return;
     if(step<screens.length-1){ nav.push(); step++; render('fwd'); }
   }
@@ -158,7 +160,7 @@ export function createLesson({ shell, nav, getName, onExit }) {
   return {
     start, next, back, bannerAction,
     // "할로윈 이야기 다시 보기": restart at screen 1 with the score reset — never back to the survey.
-    link(){ nav.push(); start('fwd'); },
+    link(){ track.lessonRestart(); nav.push(); start('fwd'); },
     keyNav(e){
       if(e.key==='ArrowRight'){ if(!shell.banner.hidden) bannerAction(); else if(canAdvance()) next(); }
       if(e.key==='ArrowLeft') nav.back();

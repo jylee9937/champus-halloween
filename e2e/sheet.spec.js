@@ -82,12 +82,16 @@ test('SC-43 모달의 Tab·Shift+Tab 포커스 순환', async ({ page }) => {
   const pick = page.getByRole('button', { name: '이 활동 고르기' });
   const close = page.getByRole('button', { name: '닫기', exact: true });
   await expect(pick).toBeFocused();
-  // Confirmed on both widths in CI: Shift+Tab escapes the modal instead of wrapping to 닫기.
-  // src/survey/survey.js:337 handles Escape only; the inert background does not implement a Tab trap.
-  // Keep the intended behavior executable until app logic is fixed in its own branch.
-  test.fail(true, 'SC-43: activity sheet lacks a Tab/Shift+Tab focus trap (src/survey/survey.js:337)');
   await page.keyboard.press('Shift+Tab');
   await expect(close).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(pick).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(close).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(pick).toBeFocused();
+  // Esc closes and returns focus to the ⓘ that opened the sheet.
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '독서모임 소개 보기' })).toBeFocused();
 });

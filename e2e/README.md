@@ -35,6 +35,11 @@ npx playwright show-report
 | `responses` | Firestore 응답 seed. 날짜는 ISO 문자열이며 조회 시 Timestamp로 변환 |
 | `signInError`, `fetchError`, `purgeError` | 로그인·응답 조회·만료 정리 실패 주입 |
 | `calls`, `purgedIds` | 허용 목록/조회/배치 호출 순서와 삭제 문서 확인 |
+| `analytics: true` | 익명 분석 기록 켜기. e2e 모드 기본값은 꺼짐이며, 켜도 쓰기는 mock의 `setDoc`으로만 간다 |
+| `sessions`, `sessionWrites` | sessions seed(날짜는 ISO 문자열)와 `setDoc` 기록(id·merge 여부·문서·시각) |
+| `sessionWriteError`, `sessionsFetchError`, `sessionsPurgeError`, `purgedSessionIds` | 분석 쓰기·조회·정리 실패 주입과 정리된 방문 기록 확인 |
+
+sessions 관련 호출은 `writeSession`, `fetchSessions`, `sessionsPurgeQuery`, `sessionsPurgeCommit`처럼 따로 기록한다. 그래서 응답 컬렉션의 호출 순서 검사(`purgeQuery`·`purgeCommit`·`fetchResponses`)에는 영향이 없다.
 
 페이지별로 mock이 초기화되므로 reload persistence 검사는 앱이 실제 저장한 sessionStorage를 사용한다. 일부 수업·링크 테스트는 공개된 완료 marker만 seed하고 설문 전체 경로는 정상 제출 테스트로 따로 증명한다. 모든 일반 설문 helper는 UI를 직접 조작하며 내부 답변 state를 주입하지 않는다.
 

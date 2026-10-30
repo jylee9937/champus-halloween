@@ -230,8 +230,11 @@
 
 43. **SC-43 모달 포커스 순환** — 자동, `sheet.spec.js`
     - 사전 조건: 활동 소개 시트에서 첫 액션에 포커스.
-    - 절차: Shift+Tab, Tab을 누른다.
-    - 기대 결과: 첫 액션에서 Shift+Tab하면 마지막 닫기 버튼으로, 마지막에서 Tab하면 첫 액션으로 돌아와 시트 밖으로 포커스가 빠지지 않는다. **현재 앱 결함 확인:** 두 폭 모두 Shift+Tab이 닫기 버튼으로 순환하지 않는다. `src/survey/survey.js:337`에는 Escape 처리만 있고 Tab trap이 없다. 이 테스트만 근거 주석과 함께 `test.fail()`로 유지한다.
+    - 절차: Shift+Tab, Tab, Tab, Tab, Escape를 누른다.
+    - 기대 결과:
+      - 첫 액션에서 Shift+Tab하면 마지막 닫기 버튼으로, 마지막에서 Tab하면 첫 액션으로 돌아온다. 포커스가 시트 밖으로 빠지지 않는다.
+      - Escape로 닫으면 시트를 연 ⓘ 버튼으로 포커스가 돌아온다.
+      - 이전에 확인된 결함(Shift+Tab 이탈)은 수정되었고 `test.fail()` 표시를 없앴다.
 
 44. **SC-44 모션 감소** — 자동, `accessibility.spec.js`
     - 사전 조건: 기본 모션에서 앱 로드.
@@ -309,6 +312,46 @@
     - 사전 조건: 이름·의견에 `<img ...>` 또는 `<script>` 형태 문자열.
     - 절차: 쿠폰과 관리자 표를 표시한다.
     - 기대 결과: 문자열 그대로 보이고 img/script DOM을 만들거나 스크립트를 실행하지 않는다.
+
+## 익명 분석 (sessions)
+
+분석 기록은 e2e 모드에서 기본으로 꺼져 있다. 켜려면 `mockOptions: { analytics: true }`를 쓴다. 이때 쓰기는 SDK mock으로만 가고 실제 Firebase에는 가지 않는다.
+
+- **SC-A1 방문 한 번 = sessions 문서 하나** — 자동, `analytics.spec.js`
+    - 사전 조건: `analytics: true`.
+    - 절차: ⓘ 두 개를 열고 그중 하나를 시트에서 고른다. 설문을 제출하고 수업 2번째 화면까지 간다.
+    - 기대 결과:
+      - 같은 sid(문서 ID)로 생성 1번, 그 뒤 병합 갱신만 한다. 생성에는 규칙이 허용하는 15개 필드가 다 들어가고, sid 필드는 없다.
+      - 갱신은 startedAt·expireAt을 건드리지 않는다.
+      - 최댓값·횟수·ⓘ 지도가 실제 조작과 맞는다.
+      - 쓰기 횟수는 화면 수보다 적다.
+      - 분석 문서와 sessionStorage에 이름·학과·학번·연락처가 없다.
+- **SC-A2 기본값 꺼짐** — 자동, `analytics.spec.js`
+    - 절차: 기본 mock으로 S1에서 ⓘ를 연다.
+    - 기대 결과: `champus:analytics` 저장 쓰기와 sessions 쓰기가 없다.
+- **SC-A3 관리자 분석 탭** — 자동, `analytics.spec.js`
+    - 사전 조건: 로그인한 관리자. sessions seed에 오늘·어제·만료 문서를 넣는다.
+    - 절차: `/admin`을 연다. 분석 탭과 전체 필터를 누른 뒤 응답 탭으로 돌아간다.
+    - 기대 결과:
+      - 만료된 방문 기록만 정리되고 알림이 뜬다.
+      - sessions는 분석 탭을 처음 열 때 한 번만 조회한다.
+      - 오늘은 4세션, 전체는 5세션이다. 설문·레슨 퍼널은 12행씩이고 가장 큰 이탈 표시는 하나다.
+      - ⓘ 표는 열람 순으로 정렬되고, 본 뒤 고른 비율이 맞다.
+- **SC-A4 화면 이동·ⓘ 열기의 병합 payload** — 자동, `analytics.spec.js`
+    - 사전 조건: `analytics: true`.
+    - 절차: S0에서 생성이 기록된 뒤 S1로 가서 ⓘ 하나를 연다.
+    - 기대 결과:
+      - 같은 문서에 병합 갱신이 기록된다.
+      - 마지막 갱신 payload는 lastScreen `s1`, maxSurveyStep 1, 그 활동의 infoOpens 1이다. 나머지는 0이고 updatedAt은 serverTimestamp다.
+      - startedAt·expireAt은 생성 때 값이 그대로 남는다.
+- **SC-A5 S10 인스타·수업·끝 화면 인스타·다시 보기 기록** — 자동, `analytics.spec.js`
+    - 사전 조건: `analytics: true`, 완료 marker로 S10 쿠폰에서 시작한다.
+    - 절차: S10 인스타 링크를 누른다. "할로윈 퀴즈 풀고 쿠키 받기 🍪"로 수업에 들어가 끝까지 푼 뒤, 끝 화면의 인스타 CTA와 "할로윈 이야기 다시 보기"를 차례로 누른다.
+    - 기대 결과: 마지막 갱신 payload는 lastScreen `l1`, maxLessonStep 11, lessonCompleted true, lessonRestarts 1, instagramClicks `{done: 1, lessonEnd: 1}`이다.
+- **SC-A6 실제 프로젝트 한 번 확인** — 수동.
+    - 사전 조건: sessions 규칙이 배포되어 있다.
+    - 절차: 배포된 사이트에서 390×844로 설문부터 수업까지 한 번 진행한다.
+    - 기대 결과: Firestore에 sessions 문서가 정확히 하나 생기고 값이 진행과 맞는다.
 
 ## 실제 환경 수동 점검
 
