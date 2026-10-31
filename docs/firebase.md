@@ -15,6 +15,25 @@ Clients can create responses but can't read them. Only allowlisted admins can re
 
 The web SDK config is public by design. Access control comes from `firestore.rules`.
 
+### Browser API key restrictions
+
+The web API key ("Browser key (auto created by Firebase)") is limited in two ways. Change both in Google Cloud console > APIs & Services > Credentials.
+
+- **API restrictions:** Firebase's default list of 27 APIs, including Firestore, Identity Toolkit and Secure Token. Leave it as it is.
+- **Application restrictions (HTTP referrers):**
+  - `https://champus-halloween.vercel.app/*`
+  - `https://champus-booth.firebaseapp.com/*` (Google sign-in popup handler; keep it)
+  - `https://champus-booth.web.app/*`
+  - `http://localhost:5173/*`, `http://127.0.0.1:5173/*` (Vite dev)
+  - `http://localhost:4173/*`, `http://127.0.0.1:4173/*` (Vite preview)
+
+Notes:
+
+- Port wildcards such as `http://localhost:*/*` are not honored. List each port explicitly.
+- Any other origin is refused, including Vercel preview URLs and requests with no referer. Add the origin here first if one is needed.
+- Firestore doesn't check the API key, so these restrictions protect Auth and the other key-checked APIs. Firestore data is protected by `firestore.rules`.
+- To verify a change, call `GET https://identitytoolkit.googleapis.com/v1/projects?key=<key>` with a `Referer` header. An allowed origin returns 200, and any other origin returns 403 "Requests from referer … are blocked". Changes take effect within a few minutes.
+
 ## Files
 
 - `firebase.json`: Firestore and emulator config
